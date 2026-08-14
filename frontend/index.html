@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AstroCode</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body class="theme-vs-dark">
+  <div id="app" class="workbench">
+    <!-- Titlebar -->
+    <header id="titlebar" class="titlebar">
+      <div class="titlebar-left">
+        <div class="app-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#007acc"/>
+            <path d="M2 17L12 22L22 17" stroke="#388bfd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="#007acc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <nav class="menubar" id="menubar">
+          <div class="menu-item" data-menu="file">File
+            <div class="menu-dropdown" id="menu-file">
+              <div class="menu-entry" data-cmd="workbench.action.files.newUntitledFile"><span>New Text File</span><span class="shortcut">Ctrl+N</span></div>
+              <div class="menu-entry" data-cmd="workbench.action.files.openFolder"><span>Open Folder...</span><span class="shortcut">Ctrl+K Ctrl+O</span></div>
+              <div class="menu-divider"></div>
+              <div class="menu-entry" data-cmd="workbench.action.files.save"><span>Save</span><span class="shortcut">Ctrl+S</span></div>
+              <div class="menu-entry" data-cmd="workbench.action.files.saveAll"><span>Save All</span><span class="shortcut">Ctrl+Shift+S</span></div>
+              <div class="menu-divider"></div>
+              <div class="menu-entry" data-cmd="workbench.action.closeActiveEditor"><span>Close Editor</span><span class="shortcut">Ctrl+W</span></div>
+            </div>
+          </div>
+          <div class="menu-item" data-menu="edit">Edit
+            <div class="menu-dropdown" id="menu-edit">
+              <div class="menu-entry" data-cmd="editor.action.undo"><span>Undo</span><span class="shortcut">Ctrl+Z</span></div>
+              <div class="menu-entry" data-cmd="editor.action.redo"><span>Redo</span><span class="shortcut">Ctrl+Y</span></div>
+              <div class="menu-divider"></div>
+              <div class="menu-entry" data-cmd="editor.action.find"><span>Find</span><span class="shortcut">Ctrl+F</span></div>
+              <div class="menu-entry" data-cmd="editor.action.replace"><span>Replace</span><span class="shortcut">Ctrl+H</span></div>
+              <div class="menu-divider"></div>
+              <div class="menu-entry" data-cmd="workbench.action.findInFiles"><span>Find in Files</span><span class="shortcut">Ctrl+Shift+F</span></div>
+            </div>
+          </div>
+          <div class="menu-item" data-menu="selection">Selection
+            <div class="menu-dropdown" id="menu-selection">
+              <div class="menu-entry" data-cmd="editor.action.selectAll"><span>Select All</span><span class="shortcut">Ctrl+A</span></div>
+              <div class="menu-entry" data-cmd="editor.action.copyLinesDownAction"><span>Copy Line Down</span><span class="shortcut">Shift+Alt+↓</span></div>
+              <div class="menu-entry" data-cmd="editor.action.moveLinesDownAction"><span>Move Line Down</span><span class="shortcut">Alt+↓</span></div>
+            </div>
+          </div>
+          <div class="menu-item" data-menu="view">View
+            <div class="menu-dropdown" id="menu-view">
+              <div class="menu-entry" data-cmd="workbench.action.showCommands"><span>Command Palette...</span><span class="shortcut">Ctrl+Shift+P</span></div>
+              <div class="menu-entry" data-cmd="workbench.view.explorer"><span>Explorer</span><span class="shortcut">Ctrl+Shift+E</span></div>
+              <div class="menu-entry" data-cmd="workbench.view.search"><span>Search</span><span class="shortcut">Ctrl+Shift+F</span></div>
+              <div class="menu-entry" data-cmd="workbench.view.scm"><span>Source Control</span><span class="shortcut">Ctrl+Shift+G</span></div>
+              <div class="menu-divider"></div>
+              <div class="menu-entry" data-cmd="workbench.action.terminal.toggleTerminal"><span>Terminal</span><span class="shortcut">Ctrl+`</span></div>
+              <div class="menu-entry" data-cmd="workbench.action.toggleSidebar"><span>Toggle Primary Side Bar</span><span class="shortcut">Ctrl+B</span></div>
+            </div>
+          </div>
+          <div class="menu-item" data-menu="terminal">Terminal
+            <div class="menu-dropdown" id="menu-terminal">
+              <div class="menu-entry" data-cmd="workbench.action.terminal.new"><span>New Terminal</span><span class="shortcut">Ctrl+Shift+`</span></div>
+              <div class="menu-entry" data-cmd="workbench.action.terminal.toggleTerminal"><span>Toggle Terminal</span><span class="shortcut">Ctrl+`</span></div>
+            </div>
+          </div>
+          <div class="menu-item" data-menu="help">Help
+            <div class="menu-dropdown" id="menu-help">
+              <div class="menu-entry" data-cmd="workbench.action.openSettings"><span>Settings</span><span class="shortcut">Ctrl+,</span></div>
+              <div class="menu-entry" data-cmd="workbench.action.showAbout"><span>About AstroCode</span></div>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <div class="titlebar-center" id="quickopen-trigger">
+        <div class="quickopen-searchbox">
+          <i class="codicon codicon-search"></i>
+          <span id="titlebar-workspace-name">AstroCode — Open Folder</span>
+          <span class="quickopen-badge">Ctrl+P</span>
+        </div>
+      </div>
+
+      <div class="titlebar-right">
+        <button class="titlebar-btn" id="btn-layout-sidebar" title="Toggle Side Bar (Ctrl+B)"><i class="codicon codicon-layout-sidebar-left"></i></button>
+        <button class="titlebar-btn" id="btn-layout-panel" title="Toggle Panel (Ctrl+`)"><i class="codicon codicon-layout-panel"></i></button>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="main-container">
+      <!-- Activity Bar -->
+      <aside class="activitybar" id="activitybar">
+        <div class="activitybar-top">
+          <button class="activity-btn active" id="act-explorer" data-view="explorer" title="Explorer (Ctrl+Shift+E)">
+            <i class="codicon codicon-files"></i>
+          </button>
+          <button class="activity-btn" id="act-search" data-view="search" title="Search (Ctrl+Shift+F)">
+            <i class="codicon codicon-search"></i>
+            <span class="badge" id="search-badge" style="display:none">0</span>
+          </button>
+          <button class="activity-btn" id="act-git" data-view="git" title="Source Control (Ctrl+Shift+G)">
+            <i class="codicon codicon-source-control"></i>
+            <span class="badge" id="git-badge" style="display:none">0</span>
+          </button>
+        </div>
+        <div class="activitybar-bottom">
+          <button class="activity-btn" id="act-settings" data-view="settings" title="Settings (Ctrl+,)">
+            <i class="codicon codicon-settings-gear"></i>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Sidebar -->
+      <div class="sidebar" id="sidebar">
+        <!-- Explorer View -->
+        <div class="sidebar-view" id="view-explorer">
+          <div class="sidebar-header">
+            <span class="sidebar-title">EXPLORER</span>
+            <div class="sidebar-actions">
+              <button class="icon-btn" id="btn-new-file" title="New File"><i class="codicon codicon-new-file"></i></button>
+              <button class="icon-btn" id="btn-new-folder" title="New Folder"><i class="codicon codicon-new-folder"></i></button>
+              <button class="icon-btn" id="btn-refresh-explorer" title="Refresh Explorer"><i class="codicon codicon-refresh"></i></button>
+              <button class="icon-btn" id="btn-collapse-explorer" title="Collapse Folders"><i class="codicon codicon-collapse-all"></i></button>
+            </div>
+          </div>
+          <div class="sidebar-content">
+            <div class="workspace-section-header" id="workspace-section-title">
+              <i class="codicon codicon-chevron-down"></i>
+              <span id="workspace-folder-name">NO FOLDER OPENED</span>
+            </div>
+            <div class="file-tree" id="file-tree">
+              <div class="empty-workspace-guide">
+                <p>You have not yet opened a folder.</p>
+                <button class="action-btn" id="btn-open-folder-welcome">Open Folder</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search View -->
+        <div class="sidebar-view" id="view-search" style="display: none;">
+          <div class="sidebar-header">
+            <span class="sidebar-title">SEARCH</span>
+            <div class="sidebar-actions">
+              <button class="icon-btn" id="btn-refresh-search" title="Refresh Search"><i class="codicon codicon-refresh"></i></button>
+              <button class="icon-btn" id="btn-clear-search" title="Clear Search"><i class="codicon codicon-clear-all"></i></button>
+            </div>
+          </div>
+          <div class="sidebar-content search-content">
+            <div class="search-inputs">
+              <div class="search-input-group">
+                <input type="text" id="search-query-input" placeholder="Search (Press Enter)" class="search-input" />
+                <div class="input-actions">
+                  <button class="toggle-btn" id="btn-toggle-case" title="Match Case (Alt+C)">Aa</button>
+                  <button class="toggle-btn" id="btn-toggle-word" title="Match Whole Word (Alt+W)">\b</button>
+                  <button class="toggle-btn" id="btn-toggle-regex" title="Use Regular Expression (Alt+R)">.*</button>
+                </div>
+              </div>
+              <div class="search-input-group" id="replace-container">
+                <input type="text" id="search-replace-input" placeholder="Replace" class="search-input" />
+                <div class="input-actions">
+                  <button class="icon-btn" id="btn-replace-all" title="Replace All (Ctrl+Alt+Enter)"><i class="codicon codicon-replace-all"></i></button>
+                </div>
+              </div>
+              <div class="search-details-toggle" id="search-details-toggle">
+                <i class="codicon codicon-ellipsis"></i> <span>files to include / exclude</span>
+              </div>
+              <div class="search-details-pane" id="search-details-pane" style="display: none;">
+                <label>files to include:</label>
+                <input type="text" id="search-include-input" placeholder="e.g. *.ts, src/**" class="search-input-small" />
+                <label>files to exclude:</label>
+                <input type="text" id="search-exclude-input" placeholder="e.g. *.min.js, node_modules" class="search-input-small" />
+              </div>
+            </div>
+            <div class="search-results-summary" id="search-results-summary" style="display:none;"></div>
+            <div class="search-results-tree" id="search-results-tree"></div>
+          </div>
+        </div>
+
+        <!-- Git / Source Control View -->
+        <div class="sidebar-view" id="view-git" style="display: none;">
+          <div class="sidebar-header">
+            <span class="sidebar-title">SOURCE CONTROL</span>
+            <div class="sidebar-actions">
+              <button class="icon-btn" id="btn-git-refresh" title="Refresh Git Status"><i class="codicon codicon-refresh"></i></button>
+              <button class="icon-btn" id="btn-git-stage-all" title="Stage All Changes"><i class="codicon codicon-add"></i></button>
+            </div>
+          </div>
+          <div class="sidebar-content git-content">
+            <div class="git-commit-box">
+              <textarea id="git-commit-message" placeholder="Message (Ctrl+Enter to commit)" rows="3"></textarea>
+              <div class="git-commit-actions">
+                <button class="action-btn primary" id="btn-git-commit">
+                  <i class="codicon codicon-check"></i> Commit
+                </button>
+              </div>
+            </div>
+            
+            <div class="git-groups" id="git-groups">
+              <div class="git-group" id="git-group-staged">
+                <div class="git-group-header">
+                  <i class="codicon codicon-chevron-down"></i>
+                  <span>STAGED CHANGES</span>
+                  <span class="git-count" id="git-staged-count">0</span>
+                  <button class="icon-btn" id="btn-git-unstage-all" title="Unstage All"><i class="codicon codicon-remove"></i></button>
+                </div>
+                <div class="git-file-list" id="git-staged-list"></div>
+              </div>
+
+              <div class="git-group" id="git-group-changes">
+                <div class="git-group-header">
+                  <i class="codicon codicon-chevron-down"></i>
+                  <span>CHANGES</span>
+                  <span class="git-count" id="git-changes-count">0</span>
+                </div>
+                <div class="git-file-list" id="git-changes-list"></div>
+              </div>
+
+              <div class="git-group" id="git-group-untracked">
+                <div class="git-group-header">
+                  <i class="codicon codicon-chevron-down"></i>
+                  <span>UNTRACKED</span>
+                  <span class="git-count" id="git-untracked-count">0</span>
+                </div>
+                <div class="git-file-list" id="git-untracked-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings View -->
+        <div class="sidebar-view" id="view-settings" style="display: none;">
+          <div class="sidebar-header">
+            <span class="sidebar-title">SETTINGS</span>
+            <div class="sidebar-actions">
+              <button class="icon-btn" id="btn-open-settings-json" title="Open settings.json (JSON)"><i class="codicon codicon-json"></i></button>
+            </div>
+          </div>
+          <div class="sidebar-content settings-content" id="settings-ui-container">
+            <!-- Settings fields rendered dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Resizer Sidebar / Editor -->
+      <div class="resizer horizontal" id="resizer-sidebar"></div>
+
+      <!-- Editor and Panel Container -->
+      <div class="editor-panel-area">
+        <!-- Editor Container -->
+        <div class="editor-container" id="editor-container">
+          <div class="tabs-bar" id="tabs-bar">
+            <div class="tabs-list" id="tabs-list"></div>
+            <div class="tabs-actions">
+              <button class="icon-btn" id="btn-split-editor" title="Split Editor Right"><i class="codicon codicon-split-horizontal"></i></button>
+              <button class="icon-btn" id="btn-close-all-tabs" title="Close All Tabs"><i class="codicon codicon-close-all"></i></button>
+            </div>
+          </div>
+
+          <div class="editor-main" id="editor-main">
+            <div id="monaco-host"></div>
+            <div id="diff-editor-host" style="display:none;"></div>
+            
+            <div class="welcome-screen" id="welcome-screen">
+              <div class="welcome-center">
+                <div class="welcome-hero">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#007acc"/>
+                    <path d="M2 17L12 22L22 17" stroke="#388bfd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="#007acc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <h1>AstroCode</h1>
+                  <p class="subtitle">Lightweight VS Code Clone in Go + Wails</p>
+                </div>
+                <div class="welcome-sections">
+                  <div class="welcome-col">
+                    <h3>Start</h3>
+                    <button class="welcome-link" id="welcome-new-file"><i class="codicon codicon-new-file"></i> New File...</button>
+                    <button class="welcome-link" id="welcome-open-folder"><i class="codicon codicon-folder-opened"></i> Open Folder...</button>
+                  </div>
+                  <div class="welcome-col">
+                    <h3>Recent Workspaces</h3>
+                    <div id="recent-workspaces-list" class="recent-list"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resizer Editor / Bottom Panel -->
+        <div class="resizer vertical" id="resizer-panel"></div>
+
+        <!-- Bottom Panel -->
+        <div class="bottom-panel" id="bottom-panel">
+          <div class="panel-header">
+            <div class="panel-tabs">
+              <button class="panel-tab active" data-panel="terminal" id="tab-panel-terminal">TERMINAL</button>
+              <button class="panel-tab" data-panel="problems" id="tab-panel-problems">PROBLEMS</button>
+              <button class="panel-tab" data-panel="output" id="tab-panel-output">OUTPUT</button>
+            </div>
+            <div class="panel-actions">
+              <button class="icon-btn" id="btn-new-terminal" title="New Terminal (Ctrl+Shift+`)"><i class="codicon codicon-plus"></i></button>
+              <button class="icon-btn" id="btn-split-terminal" title="Split Terminal"><i class="codicon codicon-split-horizontal"></i></button>
+              <button class="icon-btn" id="btn-kill-terminal" title="Kill Terminal"><i class="codicon codicon-trash"></i></button>
+              <button class="icon-btn" id="btn-maximize-panel" title="Maximize Panel Size"><i class="codicon codicon-chevron-up"></i></button>
+              <button class="icon-btn" id="btn-close-panel" title="Close Panel"><i class="codicon codicon-close"></i></button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div class="panel-view active" id="view-terminal">
+              <div class="terminal-container" id="terminal-host"></div>
+            </div>
+            <div class="panel-view" id="view-problems">
+              <div class="problems-list" id="problems-host">
+                <div class="empty-message">No problems have been detected in the workspace.</div>
+              </div>
+            </div>
+            <div class="panel-view" id="view-output">
+              <div class="output-console" id="output-host">
+                <div class="output-line">[AstroCode] Application core ready. Monaco Editor and Terminal initialized.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <footer class="statusbar" id="statusbar">
+      <div class="statusbar-left">
+        <div class="status-item git-status" id="status-git-branch" title="Git Branch">
+          <i class="codicon codicon-source-control"></i>
+          <span id="status-branch-name">main</span>
+        </div>
+        <div class="status-item git-sync" id="status-git-sync" title="Sync Changes">
+          <i class="codicon codicon-sync"></i>
+          <span id="status-sync-counts">0↓ 0↑</span>
+        </div>
+        <div class="status-item" id="status-problems-count">
+          <i class="codicon codicon-error"></i> 0 <i class="codicon codicon-warning"></i> 0
+        </div>
+      </div>
+      <div class="statusbar-right">
+        <div class="status-item" id="status-cursor-pos">Ln 1, Col 1</div>
+        <div class="status-item" id="status-indent">Spaces: 4</div>
+        <div class="status-item" id="status-encoding">UTF-8</div>
+        <div class="status-item" id="status-eol">LF</div>
+        <div class="status-item clickable" id="status-language" title="Select Language Mode">TypeScript</div>
+        <div class="status-item" id="status-notification"><i class="codicon codicon-bell"></i></div>
+      </div>
+    </footer>
+
+    <!-- Command Palette / Quick Open Modal -->
+    <div class="modal-backdrop" id="modal-backdrop" style="display: none;">
+      <div class="quick-widget" id="quick-widget">
+        <div class="quick-input-container">
+          <input type="text" id="quick-input" placeholder="Type a command or file name..." autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="quick-items-list" id="quick-items-list"></div>
+      </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="context-menu" style="display: none;"></div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
