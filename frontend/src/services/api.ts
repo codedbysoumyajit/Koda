@@ -114,6 +114,7 @@ export interface EditorSettings {
   terminalCursorBlink: boolean;
   formatOnSave: boolean;
   autoSave: string;
+  gdkBackend?: 'x11' | 'wayland';
 }
 
 // Service proxies

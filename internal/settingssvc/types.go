@@ -13,6 +13,7 @@ type EditorSettings struct {
 	TerminalCursorBlink bool `json:"terminalCursorBlink"`
 	FormatOnSave      bool   `json:"formatOnSave"`
 	AutoSave          string `json:"autoSave"` // "off", "afterDelay", "onFocusChange"
+	GdkBackend        string `json:"gdkBackend"` // "x11", "wayland"
 }
 
 type Keybinding struct {

@@ -2,7 +2,9 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"os"
+	"path/filepath"
 
 	"astrocode/internal/editorsvc"
 	"astrocode/internal/gitsvc"
@@ -19,13 +21,28 @@ import (
 )
 
 func init() {
-	// On Linux Wayland sessions (e.g. KDE Plasma, GNOME), GTK3 does not negotiate frameless
-	// client-side decorations properly with KWin/Wayland, causing a duplicate native titlebar
-	// to appear above the custom titlebar. Setting GDK_BACKEND=x11 routes through XWayland,
-	// allowing frameless mode, window dragging, and controls to work seamlessly.
-	if os.Getenv("GDK_BACKEND") == "" {
-		_ = os.Setenv("GDK_BACKEND", "x11")
+	// If the user explicitly set GDK_BACKEND in their shell environment, honor it
+	if os.Getenv("GDK_BACKEND") != "" {
+		return
 	}
+
+	// Read user settings preference from ~/.astrocode/settings.json
+	home, err := os.UserHomeDir()
+	if err == nil {
+		settingsFile := filepath.Join(home, ".astrocode", "settings.json")
+		if data, err := os.ReadFile(settingsFile); err == nil {
+			var cfg struct {
+				GdkBackend string `json:"gdkBackend"`
+			}
+			if err := json.Unmarshal(data, &cfg); err == nil && cfg.GdkBackend != "" {
+				_ = os.Setenv("GDK_BACKEND", cfg.GdkBackend)
+				return
+			}
+		}
+	}
+
+	// Default fallback to x11 for clean out-of-the-box frameless behavior on Linux Wayland compositors
+	_ = os.Setenv("GDK_BACKEND", "x11")
 }
 
 //go:embed all:frontend/dist

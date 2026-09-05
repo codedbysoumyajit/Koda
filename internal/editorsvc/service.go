@@ -17,12 +17,13 @@ import (
 )
 
 type EditorService struct {
-	ctx          context.Context
-	currentPath  string
-	watcher      *fsnotify.Watcher
-	watcherStop  chan struct{}
-	mu           sync.RWMutex
-	lastEmitTime time.Time
+	ctx             context.Context
+	currentPath     string
+	watcher         *fsnotify.Watcher
+	watcherStop     chan struct{}
+	mu              sync.RWMutex
+	lastEmitTime    time.Time
+	isOpeningFolder bool
 }
 
 func NewEditorService() *EditorService {
@@ -36,31 +37,30 @@ func (s *EditorService) Startup(ctx context.Context) {
 }
 
 func (s *EditorService) OpenFolderDialog() (string, error) {
-	var selected string
-	var err error
-	if s.ctx != nil {
-		selected, err = wailsRuntime.OpenDirectoryDialog(s.ctx, wailsRuntime.OpenDialogOptions{
-			Title: "Open Workspace Folder",
-		})
+	if s.ctx == nil {
+		return "", fmt.Errorf("context not initialized")
 	}
-	// Fallback for Linux if selected is empty or error
-	if (err != nil || selected == "") && runtime.GOOS == "linux" {
-		if _, errZ := exec.LookPath("zenity"); errZ == nil {
-			out, errCmd := exec.Command("zenity", "--file-selection", "--directory", "--title=Open Workspace Folder").Output()
-			if errCmd == nil && len(out) > 0 {
-				selected = strings.TrimSpace(string(out))
-				err = nil
-			}
-		} else if _, errK := exec.LookPath("kdialog"); errK == nil {
-			out, errCmd := exec.Command("kdialog", "--getexistingdirectory", ".").Output()
-			if errCmd == nil && len(out) > 0 {
-				selected = strings.TrimSpace(string(out))
-				err = nil
-			}
-		}
+
+	s.mu.Lock()
+	if s.isOpeningFolder {
+		s.mu.Unlock()
+		return "", nil
 	}
+	s.isOpeningFolder = true
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		s.isOpeningFolder = false
+		s.mu.Unlock()
+	}()
+
+	selected, err := wailsRuntime.OpenDirectoryDialog(s.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Open Workspace Folder",
+	})
 	if err != nil || selected == "" {
-		return "", err
+		// User cancelled or crossed out of the dialog: return cleanly without re-opening
+		return "", nil
 	}
 	s.SetWorkspace(selected)
 	return selected, nil

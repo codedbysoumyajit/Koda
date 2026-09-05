@@ -30,6 +30,7 @@ class AstroCodeApp {
     ['Terminal', ['[Terminal] Ready.']]
   ]);
   private currentOutputChannel: string = 'AstroCode';
+  private isOpeningFolder: boolean = false;
 
   public async start() {
     // 1. Initialize Settings
@@ -581,13 +582,16 @@ class AstroCodeApp {
       this.monacoMgr.openFile(`Untitled-${Date.now() % 1000}.txt`, '');
     });
 
-    document.getElementById('welcome-open-folder')?.addEventListener('click', () => this.triggerOpenFolder());
-    document.getElementById('btn-open-folder-welcome')?.addEventListener('click', () => this.triggerOpenFolder());
+    document.getElementById('welcome-open-folder')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.triggerOpenFolder();
+    });
 
     // Delegated click on file-tree so any "Open Folder" button in empty guide works dynamically
     document.getElementById('file-tree')?.addEventListener('click', (e) => {
       const target = (e.target as HTMLElement).closest('#btn-open-folder-welcome, #btn-open-folder-welcome-inner, .empty-workspace-guide .action-btn');
       if (target) {
+        e.stopPropagation();
         this.triggerOpenFolder();
       }
     });
@@ -858,6 +862,8 @@ class AstroCodeApp {
   }
 
   public async triggerOpenFolder() {
+    if (this.isOpeningFolder) return;
+    this.isOpeningFolder = true;
     try {
       const selected = await EditorAPI.openFolderDialog();
       if (selected) {
@@ -865,6 +871,10 @@ class AstroCodeApp {
       }
     } catch (err) {
       console.error('Failed to open workspace folder:', err);
+    } finally {
+      setTimeout(() => {
+        this.isOpeningFolder = false;
+      }, 400);
     }
   }
 

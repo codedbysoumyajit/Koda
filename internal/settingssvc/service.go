@@ -45,6 +45,7 @@ func defaultSettings() EditorSettings {
 		TerminalCursorBlink: true,
 		FormatOnSave:        false,
 		AutoSave:            "off",
+		GdkBackend:          "x11",
 	}
 }
 

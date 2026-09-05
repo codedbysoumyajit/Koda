@@ -121,6 +121,20 @@ export class SettingsManager {
       </div>
 
       <div class="settings-section">
+        <h4>Window & Display (Linux)</h4>
+        <div class="setting-item">
+          <label>Display Backend</label>
+          <select id="setting-gdk-backend">
+            <option value="x11" ${s.gdkBackend !== 'wayland' ? 'selected' : ''}>X11 / XWayland (Frameless, Recommended)</option>
+            <option value="wayland" ${s.gdkBackend === 'wayland' ? 'selected' : ''}>Native Wayland (Requires KDE Window Rule)</option>
+          </select>
+        </div>
+        <div style="font-size: 11px; color: var(--fg-description); margin-top: 4px; line-height: 1.4;">
+          Requires restarting AstroCode to take effect.
+        </div>
+      </div>
+
+      <div class="settings-section">
         <button class="action-btn" id="btn-edit-settings-json">
           <i class="codicon codicon-json"></i> Edit in settings.json
         </button>
@@ -171,6 +185,11 @@ export class SettingsManager {
     const termFontFamilyInput = document.getElementById('setting-term-fontfamily') as HTMLInputElement;
     if (termFontFamilyInput) {
       termFontFamilyInput.onchange = () => this.updateSetting('terminalFontFamily', termFontFamilyInput.value);
+    }
+
+    const gdkBackendSelect = document.getElementById('setting-gdk-backend') as HTMLSelectElement;
+    if (gdkBackendSelect) {
+      gdkBackendSelect.onchange = () => this.updateSetting('gdkBackend', gdkBackendSelect.value as any);
     }
 
     const editJsonBtn = document.getElementById('btn-edit-settings-json');

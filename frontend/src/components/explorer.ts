@@ -159,7 +159,9 @@ export class ExplorerManager {
       `;
       const btn = this.treeContainer.querySelector('#btn-open-folder-welcome') as HTMLElement;
       if (btn) {
-        btn.onclick = () => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
           if (this.onOpenFolderCallback) {
             this.onOpenFolderCallback();
           }
