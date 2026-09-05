@@ -764,6 +764,52 @@ html, body {
   border-color: var(--border-input-focus);
 }
 
+.git-commit-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.git-sync-actions {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.git-sync-actions .action-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.action-btn.secondary {
+  background-color: var(--bg-badge);
+  color: var(--fg-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.action-btn.secondary:hover {
+  background-color: var(--bg-hover);
+}
+
+.git-sync-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  margin-bottom: 12px;
+  background-color: rgba(56, 139, 253, 0.1);
+  border: 1px solid rgba(56, 139, 253, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #58a6ff;
+}
+
+.git-sync-banner .action-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
 .git-group {
   margin-bottom: 12px;
 }

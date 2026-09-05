@@ -193,6 +193,8 @@
             <div class="sidebar-actions">
               <button class="icon-btn" id="btn-git-refresh" title="Refresh Git Status"><i class="codicon codicon-refresh"></i></button>
               <button class="icon-btn" id="btn-git-stage-all" title="Stage All Changes"><i class="codicon codicon-add"></i></button>
+              <button class="icon-btn" id="btn-git-push-icon" title="Push Changes to Remote"><i class="codicon codicon-cloud-upload"></i></button>
+              <button class="icon-btn" id="btn-git-pull-icon" title="Pull Changes from Remote"><i class="codicon codicon-cloud-download"></i></button>
             </div>
           </div>
           <div class="sidebar-content git-content">
@@ -202,8 +204,21 @@
                 <button class="action-btn primary" id="btn-git-commit">
                   <i class="codicon codicon-check"></i> Commit
                 </button>
+                <div class="git-sync-actions">
+                  <button class="action-btn secondary" id="btn-git-push-btn" title="Push Commits to Remote">
+                    <i class="codicon codicon-cloud-upload"></i> Push
+                  </button>
+                  <button class="action-btn secondary" id="btn-git-pull-btn" title="Pull Changes from Remote">
+                    <i class="codicon codicon-cloud-download"></i> Pull
+                  </button>
+                  <button class="action-btn secondary" id="btn-git-sync-btn" title="Sync Changes (Pull & Push)">
+                    <i class="codicon codicon-sync"></i> Sync
+                  </button>
+                </div>
               </div>
             </div>
+            
+            <div class="git-sync-banner" id="git-sync-banner" style="display: none;"></div>
             
             <div class="git-groups" id="git-groups">
               <div class="git-group" id="git-group-staged">

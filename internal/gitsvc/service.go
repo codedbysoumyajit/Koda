@@ -259,7 +259,17 @@ func (s *GitService) CreateBranch(repoPath, branchName string) (string, error) {
 }
 
 func (s *GitService) Push(repoPath string) (string, error) {
-	return s.runGit(repoPath, "push")
+	out, err := s.runGit(repoPath, "push")
+	if err != nil && (strings.Contains(err.Error(), "no upstream branch") || strings.Contains(err.Error(), "has no upstream branch")) {
+		branchOut, bErr := s.runGit(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
+		if bErr == nil {
+			currBranch := strings.TrimSpace(branchOut)
+			if currBranch != "" && currBranch != "HEAD" {
+				return s.runGit(repoPath, "push", "-u", "origin", currBranch)
+			}
+		}
+	}
+	return out, err
 }
 
 func (s *GitService) Pull(repoPath string) (string, error) {

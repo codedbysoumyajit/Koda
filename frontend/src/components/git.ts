@@ -80,6 +80,13 @@ export class GitManager {
       };
     }
 
+    // Push, Pull, Sync Actions
+    document.getElementById('btn-git-push-icon')?.addEventListener('click', () => this.push());
+    document.getElementById('btn-git-push-btn')?.addEventListener('click', () => this.push());
+    document.getElementById('btn-git-pull-icon')?.addEventListener('click', () => this.pull());
+    document.getElementById('btn-git-pull-btn')?.addEventListener('click', () => this.pull());
+    document.getElementById('btn-git-sync-btn')?.addEventListener('click', () => this.sync());
+
     // Collapsible group headers
     const stagedHeader = document.querySelector('#git-group-staged .git-group-header') as HTMLElement;
     stagedHeader?.addEventListener('click', (e) => {
@@ -187,12 +194,87 @@ export class GitManager {
     }
   }
 
+  public async push() {
+    if (!this.currentRepoPath) return;
+    const btns = [
+      document.getElementById('btn-git-push-btn'),
+      document.getElementById('btn-git-push-icon')
+    ];
+    btns.forEach((b) => b?.classList.add('sync-spinning'));
+
+    try {
+      await GitAPI.push(this.currentRepoPath);
+      await this.refresh();
+      alert('Pushed commits to remote successfully.');
+    } catch (e: any) {
+      const errText = typeof e === 'string' ? e : e?.message || JSON.stringify(e);
+      alert(`Push error: ${errText.replace(/^exit status \d+:\s*/, '')}`);
+    } finally {
+      btns.forEach((b) => b?.classList.remove('sync-spinning'));
+    }
+  }
+
+  public async pull() {
+    if (!this.currentRepoPath) return;
+    const btns = [
+      document.getElementById('btn-git-pull-btn'),
+      document.getElementById('btn-git-pull-icon')
+    ];
+    btns.forEach((b) => b?.classList.add('sync-spinning'));
+
+    try {
+      await GitAPI.pull(this.currentRepoPath);
+      await this.refresh();
+      alert('Pulled changes from remote successfully.');
+    } catch (e: any) {
+      const errText = typeof e === 'string' ? e : e?.message || JSON.stringify(e);
+      alert(`Pull error: ${errText.replace(/^exit status \d+:\s*/, '')}`);
+    } finally {
+      btns.forEach((b) => b?.classList.remove('sync-spinning'));
+    }
+  }
+
+  public async sync() {
+    if (!this.currentRepoPath) return;
+    const btn = document.getElementById('btn-git-sync-btn');
+    if (btn) btn.classList.add('sync-spinning');
+
+    try {
+      await GitAPI.pull(this.currentRepoPath);
+      await GitAPI.push(this.currentRepoPath);
+      await this.refresh();
+      alert('Repository synced successfully.');
+    } catch (e: any) {
+      const errText = typeof e === 'string' ? e : e?.message || JSON.stringify(e);
+      alert(`Sync error: ${errText.replace(/^exit status \d+:\s*/, '')}`);
+    } finally {
+      if (btn) btn.classList.remove('sync-spinning');
+    }
+  }
+
   private render() {
     if (!this.currentStatus) {
       this.stagedListEl.innerHTML = '';
       this.changesListEl.innerHTML = '';
       this.untrackedListEl.innerHTML = '<div class="empty-workspace-guide"><p>Current workspace is not a Git repository.</p></div>';
+      const banner = document.getElementById('git-sync-banner');
+      if (banner) banner.style.display = 'none';
       return;
+    }
+
+    // Sync banner when commits are ahead or behind remote
+    const banner = document.getElementById('git-sync-banner');
+    if (banner) {
+      if (this.currentStatus.ahead > 0 || this.currentStatus.behind > 0) {
+        banner.style.display = 'flex';
+        banner.innerHTML = `
+          <span><i class="codicon codicon-sync"></i> ${this.currentStatus.ahead}↑ ${this.currentStatus.behind}↓ pending</span>
+          <button class="action-btn secondary" id="btn-git-banner-sync"><i class="codicon codicon-cloud-upload"></i> Sync</button>
+        `;
+        document.getElementById('btn-git-banner-sync')?.addEventListener('click', () => this.sync());
+      } else {
+        banner.style.display = 'none';
+      }
     }
 
     // Staged

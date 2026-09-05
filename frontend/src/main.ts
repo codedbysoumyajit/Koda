@@ -1305,12 +1305,14 @@ class AstroCodeApp {
         label: 'Git: Push',
         detail: 'Push commits to remote repository',
         icon: 'codicon-cloud-upload',
-        action: async () => {
-          if (this.currentWorkspace) {
-            await GitAPI.push(this.currentWorkspace);
-            await this.gitMgr.refresh();
-          }
-        }
+        action: () => this.gitMgr.push()
+      },
+      {
+        id: 'git.sync',
+        label: 'Git: Sync (Pull and Push)',
+        detail: 'Synchronize changes with remote repository',
+        icon: 'codicon-sync',
+        action: () => this.gitMgr.sync()
       }
     ];
 
