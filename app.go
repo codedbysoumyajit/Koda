@@ -8,6 +8,8 @@ import (
 	"astrocode/internal/searchsvc"
 	"astrocode/internal/settingssvc"
 	"astrocode/internal/termsvc"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -51,4 +53,56 @@ func (a *App) startup(ctx context.Context) {
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return "Welcome to AstroCode, " + name + "!"
+}
+
+// ToggleFullscreen toggles fullscreen state
+func (a *App) ToggleFullscreen() bool {
+	if a.ctx == nil {
+		return false
+	}
+	if wailsRuntime.WindowIsFullscreen(a.ctx) {
+		wailsRuntime.WindowUnfullscreen(a.ctx)
+		return false
+	}
+	wailsRuntime.WindowFullscreen(a.ctx)
+	return true
+}
+
+// ToggleMaximize toggles maximized state
+func (a *App) ToggleMaximize() bool {
+	if a.ctx == nil {
+		return false
+	}
+	wailsRuntime.WindowToggleMaximise(a.ctx)
+	return wailsRuntime.WindowIsMaximised(a.ctx)
+}
+
+// IsFullscreen returns whether the window is currently fullscreen
+func (a *App) IsFullscreen() bool {
+	if a.ctx == nil {
+		return false
+	}
+	return wailsRuntime.WindowIsFullscreen(a.ctx)
+}
+
+// IsMaximised returns whether the window is currently maximized
+func (a *App) IsMaximised() bool {
+	if a.ctx == nil {
+		return false
+	}
+	return wailsRuntime.WindowIsMaximised(a.ctx)
+}
+
+// Minimize minimizes the window
+func (a *App) Minimize() {
+	if a.ctx != nil {
+		wailsRuntime.WindowMinimise(a.ctx)
+	}
+}
+
+// Close closes the window / application
+func (a *App) Close() {
+	if a.ctx != nil {
+		wailsRuntime.Quit(a.ctx)
+	}
 }

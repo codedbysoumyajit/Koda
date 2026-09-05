@@ -57,6 +57,8 @@
               <div class="menu-divider"></div>
               <div class="menu-entry" data-cmd="workbench.action.terminal.toggleTerminal"><span>Terminal</span><span class="shortcut">Ctrl+`</span></div>
               <div class="menu-entry" data-cmd="workbench.action.toggleSidebar"><span>Toggle Primary Side Bar</span><span class="shortcut">Ctrl+B</span></div>
+              <div class="menu-divider"></div>
+              <div class="menu-entry" data-cmd="workbench.action.toggleFullScreen"><span>Toggle Full Screen</span><span class="shortcut">F11</span></div>
             </div>
           </div>
           <div class="menu-item" data-menu="terminal">Terminal
@@ -85,6 +87,11 @@
       <div class="titlebar-right">
         <button class="titlebar-btn" id="btn-layout-sidebar" title="Toggle Side Bar (Ctrl+B)"><i class="codicon codicon-layout-sidebar-left"></i></button>
         <button class="titlebar-btn" id="btn-layout-panel" title="Toggle Panel (Ctrl+`)"><i class="codicon codicon-layout-panel"></i></button>
+        <div class="titlebar-window-controls">
+          <button class="window-control-btn" id="btn-window-minimize" title="Minimize"><i class="codicon codicon-chrome-minimize"></i></button>
+          <button class="window-control-btn" id="btn-window-maximize" title="Maximize"><i class="codicon codicon-chrome-maximize"></i></button>
+          <button class="window-control-btn close" id="btn-window-close" title="Close"><i class="codicon codicon-chrome-close"></i></button>
+        </div>
       </div>
     </header>
 
@@ -259,6 +266,12 @@
             </div>
           </div>
 
+          <div class="editor-breadcrumbs" id="editor-breadcrumbs">
+            <span class="breadcrumb-item"><i class="codicon codicon-folder"></i> <span id="breadcrumb-workspace">AstroCode</span></span>
+            <span class="breadcrumb-separator"><i class="codicon codicon-chevron-right"></i></span>
+            <span class="breadcrumb-item active"><i class="codicon codicon-file"></i> <span id="breadcrumb-filename">No file open</span></span>
+          </div>
+
           <div class="editor-main" id="editor-main">
             <div id="monaco-host"></div>
             <div id="diff-editor-host" style="display:none;"></div>
@@ -314,11 +327,23 @@
               <div class="terminal-container" id="terminal-host"></div>
             </div>
             <div class="panel-view" id="view-problems">
+              <div class="problems-toolbar">
+                <span class="problems-filter-count" id="problems-count-header">0 Problems</span>
+                <button class="icon-btn" id="btn-refresh-problems" title="Refresh Problems"><i class="codicon codicon-refresh"></i></button>
+              </div>
               <div class="problems-list" id="problems-host">
                 <div class="empty-message">No problems have been detected in the workspace.</div>
               </div>
             </div>
             <div class="panel-view" id="view-output">
+              <div class="output-toolbar">
+                <select id="output-channel-select" class="output-channel-select">
+                  <option value="AstroCode">AstroCode</option>
+                  <option value="Git">Git</option>
+                  <option value="Terminal">Terminal</option>
+                </select>
+                <button class="icon-btn" id="btn-clear-output" title="Clear Output"><i class="codicon codicon-clear-all"></i></button>
+              </div>
               <div class="output-console" id="output-host">
                 <div class="output-line">[AstroCode] Application core ready. Monaco Editor and Terminal initialized.</div>
               </div>
@@ -365,6 +390,33 @@
 
     <!-- Context Menu -->
     <div class="context-menu" id="context-menu" style="display: none;"></div>
+
+    <!-- About Modal -->
+    <div class="modal-backdrop" id="about-modal" style="display: none;">
+      <div class="about-card">
+        <div class="about-header">
+          <div class="app-icon large">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#007acc"/>
+              <path d="M2 17L12 22L22 17" stroke="#388bfd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="#007acc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h2>AstroCode</h2>
+          <span class="about-version">v1.0.0 (Go + Wails + Monaco)</span>
+        </div>
+        <div class="about-details">
+          <div class="about-row"><span>Framework:</span><strong>Wails v2</strong></div>
+          <div class="about-row"><span>Core Editor:</span><strong>Monaco Editor</strong></div>
+          <div class="about-row"><span>Terminal Engine:</span><strong>xterm.js + PTY</strong></div>
+          <div class="about-row"><span>Platform:</span><strong>Cross-Platform (Linux, macOS, Windows)</strong></div>
+          <p class="about-desc">A lightweight, high-performance VS Code clone built with Go, TypeScript, and Monaco.</p>
+        </div>
+        <div class="about-footer">
+          <button class="action-btn primary" id="btn-close-about">OK</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./src/main.ts"></script>

@@ -14,30 +14,30 @@ type ptySession struct {
 	stdout io.ReadCloser
 }
 
-func startPty(cwd string) (*ptySession, error) {
+func startPty(cwd string) (*ptySession, string, error) {
 	cmd := exec.Command("powershell.exe")
 	if cwd != "" {
 		cmd.Dir = cwd
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	cmd.Stderr = cmd.Stdout
 
 	if err := cmd.Start(); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	return &ptySession{
 		cmd:    cmd,
 		stdin:  stdin,
 		stdout: stdout,
-	}, nil
+	}, "powershell", nil
 }
 
 func (s *ptySession) Read(p []byte) (int, error) {

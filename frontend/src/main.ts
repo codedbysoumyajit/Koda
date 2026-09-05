@@ -1,12 +1,13 @@
 import './style.css';
-import { EditorAPI, SettingsAPI, Events, GitAPI } from './services/api';
-import { MonacoManager } from './components/monaco';
+import { EditorAPI, SettingsAPI, GitAPI, AppAPI } from './services/api';
+import { MonacoManager, EditorTab } from './components/monaco';
 import { TerminalManager } from './components/terminal';
 import { ExplorerManager } from './components/explorer';
 import { SearchManager } from './components/search';
 import { GitManager } from './components/git';
 import { QuickOpenManager, QuickItem } from './components/quickopen';
 import { SettingsManager } from './components/settings';
+import * as monaco from 'monaco-editor';
 
 class AstroCodeApp {
   private monacoMgr!: MonacoManager;
@@ -22,6 +23,13 @@ class AstroCodeApp {
   private isPanelVisible: boolean = true;
   private activeSidebarView: string = 'explorer';
   private activePanelView: string = 'terminal';
+  private activeMenuDropdown: HTMLElement | null = null;
+  private outputLogs: Map<string, string[]> = new Map([
+    ['AstroCode', ['[AstroCode] Application core ready. Monaco Editor and Multi-Terminal initialized.']],
+    ['Git', ['[Git] Ready.']],
+    ['Terminal', ['[Terminal] Ready.']]
+  ]);
+  private currentOutputChannel: string = 'AstroCode';
 
   public async start() {
     // 1. Initialize Settings
@@ -77,9 +85,12 @@ class AstroCodeApp {
     // 8. Wire Component Handlers
     this.setupComponentEvents();
     this.setupUIInteractions();
+    this.setupMenubar();
     this.setupKeyboardShortcuts();
     this.setupResizers();
     this.loadRecentWorkspaces();
+    this.setupWindowControls();
+    this.setupOutputPanel();
 
     // Default workspace check
     const current = await EditorAPI.getCurrentWorkspace();
@@ -87,7 +98,7 @@ class AstroCodeApp {
       await this.openWorkspace(current);
     } else {
       // Start terminal with home or current directory
-      this.termMgr.startSession('');
+      await this.termMgr.startSession('');
     }
   }
 
@@ -95,18 +106,126 @@ class AstroCodeApp {
     document.body.className = theme === 'vs-light' ? 'theme-vs-light' : 'theme-vs-dark';
   }
 
+  public log(channel: string, message: string) {
+    const timestamp = new Date().toLocaleTimeString();
+    const formatted = `[${timestamp}] ${message}`;
+    if (!this.outputLogs.has(channel)) {
+      this.outputLogs.set(channel, []);
+    }
+    this.outputLogs.get(channel)!.push(formatted);
+    if (this.currentOutputChannel === channel) {
+      this.renderOutputConsole();
+    }
+  }
+
+  private renderOutputConsole() {
+    const outputHost = document.getElementById('output-host');
+    if (!outputHost) return;
+    const logs = this.outputLogs.get(this.currentOutputChannel) || [];
+    outputHost.innerHTML = logs.map((l) => `<div class="output-line">${this.escapeHtml(l)}</div>`).join('');
+    outputHost.scrollTop = outputHost.scrollHeight;
+  }
+
+  private setupOutputPanel() {
+    const channelSelect = document.getElementById('output-channel-select') as HTMLSelectElement;
+    if (channelSelect) {
+      channelSelect.onchange = () => {
+        this.currentOutputChannel = channelSelect.value;
+        this.renderOutputConsole();
+      };
+    }
+
+    const clearBtn = document.getElementById('btn-clear-output');
+    if (clearBtn) {
+      clearBtn.onclick = () => {
+        this.outputLogs.set(this.currentOutputChannel, []);
+        this.renderOutputConsole();
+      };
+    }
+
+    this.renderOutputConsole();
+  }
+
+  private setupWindowControls() {
+    const minBtn = document.getElementById('btn-window-minimize');
+    const maxBtn = document.getElementById('btn-window-maximize');
+    const closeBtn = document.getElementById('btn-window-close');
+    const titlebar = document.getElementById('titlebar');
+
+    minBtn?.addEventListener('click', async () => {
+      await AppAPI.minimize();
+    });
+
+    maxBtn?.addEventListener('click', async () => {
+      const isMax = await AppAPI.toggleMaximize();
+      this.updateMaximizeIcon(isMax);
+    });
+
+    closeBtn?.addEventListener('click', async () => {
+      await AppAPI.close();
+    });
+
+    // Double click titlebar to toggle maximize
+    titlebar?.addEventListener('dblclick', async (e) => {
+      if ((e.target as HTMLElement).closest('button, input, .menu-item, .quickopen-searchbox')) return;
+      const isMax = await AppAPI.toggleMaximize();
+      this.updateMaximizeIcon(isMax);
+    });
+
+    document.getElementById('btn-close-about')?.addEventListener('click', () => {
+      this.hideAbout();
+    });
+
+    document.getElementById('about-modal')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('about-modal')) {
+        this.hideAbout();
+      }
+    });
+
+    AppAPI.isMaximised().then((isMax) => this.updateMaximizeIcon(isMax));
+  }
+
+  private updateMaximizeIcon(isMax: boolean) {
+    const maxBtn = document.getElementById('btn-window-maximize');
+    if (!maxBtn) return;
+    const icon = maxBtn.querySelector('.codicon') as HTMLElement;
+    if (icon) {
+      icon.className = `codicon ${isMax ? 'codicon-chrome-restore' : 'codicon-chrome-maximize'}`;
+    }
+    maxBtn.title = isMax ? 'Restore' : 'Maximize';
+  }
+
+  private async toggleFullscreen() {
+    const isFull = await AppAPI.toggleFullscreen();
+    this.log('AstroCode', isFull ? 'Entered full screen' : 'Exited full screen');
+  }
+
+  private showAbout() {
+    const modal = document.getElementById('about-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  private hideAbout() {
+    const modal = document.getElementById('about-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
   private setupComponentEvents() {
     // Monaco Events
     this.monacoMgr.onTabChange((tab) => {
       const langEl = document.getElementById('status-language');
       const indentEl = document.getElementById('status-indent');
+      const breadcrumbFile = document.getElementById('breadcrumb-filename');
+
       if (tab) {
         this.explorerMgr.setActiveFile(tab.path);
         if (langEl) langEl.textContent = tab.model.getLanguageId();
         if (indentEl) indentEl.textContent = `Spaces: ${this.settingsMgr.getSettings().tabSize}`;
+        if (breadcrumbFile) breadcrumbFile.textContent = tab.name;
       } else {
         this.explorerMgr.setActiveFile(null);
         if (langEl) langEl.textContent = 'Plain Text';
+        if (breadcrumbFile) breadcrumbFile.textContent = 'No file open';
       }
     });
 
@@ -117,35 +236,68 @@ class AstroCodeApp {
       }
     });
 
+    // Monaco real-time syntax markers -> Problems panel
+    this.monacoMgr.onMarkersChange((markers) => {
+      this.updateProblemsPanel(markers);
+    });
+
+    // Tab context menu
+    this.monacoMgr.onTabContextMenu((e, tab) => {
+      this.showContextMenu(e.clientX, e.clientY, [
+        {
+          label: 'Close (Ctrl+W)',
+          action: () => this.monacoMgr.closeTab(tab.path)
+        },
+        {
+          label: 'Close Others',
+          action: () => this.monacoMgr.closeOthers(tab.path)
+        },
+        {
+          label: 'Close to the Right',
+          action: () => this.monacoMgr.closeToRight(tab.path)
+        },
+        {
+          label: 'Close All',
+          action: () => this.monacoMgr.closeAllTabs()
+        },
+        { type: 'separator' },
+        {
+          label: 'Copy Path',
+          action: () => navigator.clipboard.writeText(tab.path)
+        },
+        {
+          label: 'Copy Relative Path',
+          action: () => {
+            const rel = tab.path.replace(this.currentWorkspace + '/', '');
+            navigator.clipboard.writeText(rel);
+          }
+        },
+        {
+          label: 'Reveal in File Explorer',
+          action: () => EditorAPI.revealInFileExplorer(tab.path)
+        }
+      ]);
+    });
+
     // Explorer Events
     this.explorerMgr.onOpenFile((path) => {
       this.monacoMgr.openFile(path);
+      this.log('AstroCode', `Opened file: ${path}`);
+    });
+
+    this.explorerMgr.onOpenFolder(() => {
+      this.triggerOpenFolder();
     });
 
     this.explorerMgr.onContextMenu((e, node) => {
       this.showContextMenu(e.clientX, e.clientY, [
         {
           label: 'New File',
-          action: async () => {
-            const name = prompt('File Name:');
-            if (name) {
-              const targetDir = node.isDir ? node.path : node.path.substring(0, node.path.lastIndexOf('/'));
-              await EditorAPI.createFile(`${targetDir}/${name}`);
-              await this.explorerMgr.refresh();
-              this.monacoMgr.openFile(`${targetDir}/${name}`);
-            }
-          }
+          action: () => this.explorerMgr.startInlineCreate(false)
         },
         {
           label: 'New Folder',
-          action: async () => {
-            const name = prompt('Folder Name:');
-            if (name) {
-              const targetDir = node.isDir ? node.path : node.path.substring(0, node.path.lastIndexOf('/'));
-              await EditorAPI.createFolder(`${targetDir}/${name}`);
-              await this.explorerMgr.refresh();
-            }
-          }
+          action: () => this.explorerMgr.startInlineCreate(true)
         },
         { type: 'separator' },
         {
@@ -171,12 +323,27 @@ class AstroCodeApp {
         },
         { type: 'separator' },
         {
+          label: 'Open in Integrated Terminal',
+          action: () => {
+            const dir = node.isDir ? node.path : node.path.substring(0, node.path.lastIndexOf('/'));
+            this.termMgr.startSession(dir);
+            this.switchPanelView('terminal');
+          }
+        },
+        {
           label: 'Reveal in File Manager',
           action: () => EditorAPI.revealInFileExplorer(node.path)
         },
         {
           label: 'Copy Path',
           action: () => navigator.clipboard.writeText(node.path)
+        },
+        {
+          label: 'Copy Relative Path',
+          action: () => {
+            const rel = node.path.replace(this.currentWorkspace + '/', '');
+            navigator.clipboard.writeText(rel);
+          }
         }
       ]);
     });
@@ -214,6 +381,133 @@ class AstroCodeApp {
       const json = await SettingsAPI.getSettingsJSON();
       this.monacoMgr.openFile('~/.astrocode/settings.json', json);
     });
+
+    // Quick Open file select & Go to Line
+    this.quickOpenMgr.onOpenFile((path) => {
+      this.monacoMgr.openFile(path);
+    });
+
+    this.quickOpenMgr.onGoToLine((lineNum) => {
+      const editor = this.monacoMgr.getEditorInstance();
+      editor.revealLineInCenter(lineNum);
+      editor.setPosition({ lineNumber: lineNum, column: 1 });
+      editor.focus();
+    });
+  }
+
+  private updateProblemsPanel(markers: monaco.editor.IMarker[]) {
+    const problemsCountHeader = document.getElementById('problems-count-header');
+    const problemsHost = document.getElementById('problems-host');
+    const statusProblems = document.getElementById('status-problems-count');
+
+    let errors = 0;
+    let warnings = 0;
+
+    markers.forEach((m) => {
+      if (m.severity === monaco.MarkerSeverity.Error) errors++;
+      else if (m.severity === monaco.MarkerSeverity.Warning) warnings++;
+    });
+
+    if (statusProblems) {
+      statusProblems.innerHTML = `<i class="codicon codicon-error"></i> ${errors} <i class="codicon codicon-warning"></i> ${warnings}`;
+    }
+
+    if (problemsCountHeader) {
+      problemsCountHeader.textContent = `${markers.length} Problem${markers.length === 1 ? '' : 's'}`;
+    }
+
+    if (!problemsHost) return;
+
+    if (markers.length === 0) {
+      problemsHost.innerHTML = '<div class="empty-message">No problems have been detected in the workspace.</div>';
+      return;
+    }
+
+    problemsHost.innerHTML = '';
+    markers.forEach((marker) => {
+      const item = document.createElement('div');
+      item.className = 'problem-item';
+
+      const isErr = marker.severity === monaco.MarkerSeverity.Error;
+      const icon = document.createElement('i');
+      icon.className = `codicon ${isErr ? 'codicon-error problem-icon-error' : 'codicon-warning problem-icon-warning'}`;
+
+      const msg = document.createElement('span');
+      msg.className = 'problem-message';
+      msg.textContent = marker.message;
+
+      const loc = document.createElement('span');
+      loc.className = 'problem-location';
+      const fileName = marker.resource.path.split('/').pop() || marker.resource.path;
+      loc.textContent = `${fileName} [${marker.startLineNumber}, ${marker.startColumn}]`;
+
+      item.appendChild(icon);
+      item.appendChild(msg);
+      item.appendChild(loc);
+
+      item.onclick = async () => {
+        await this.monacoMgr.openFile(marker.resource.path);
+        const editor = this.monacoMgr.getEditorInstance();
+        editor.revealLineInCenter(marker.startLineNumber);
+        editor.setPosition({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+        editor.focus();
+      };
+
+      problemsHost.appendChild(item);
+    });
+  }
+
+  private setupMenubar() {
+    const menuItems = document.querySelectorAll('.menu-item[data-menu]');
+    
+    menuItems.forEach((item) => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dropdown = item.querySelector('.menu-dropdown') as HTMLElement;
+        if (this.activeMenuDropdown === dropdown) {
+          this.closeMenubarDropdowns();
+        } else {
+          this.closeMenubarDropdowns();
+          if (dropdown) {
+            dropdown.classList.add('show');
+            item.classList.add('active');
+            this.activeMenuDropdown = dropdown;
+          }
+        }
+      });
+
+      item.addEventListener('mouseenter', () => {
+        if (this.activeMenuDropdown) {
+          const dropdown = item.querySelector('.menu-dropdown') as HTMLElement;
+          this.closeMenubarDropdowns();
+          if (dropdown) {
+            dropdown.classList.add('show');
+            item.classList.add('active');
+            this.activeMenuDropdown = dropdown;
+          }
+        }
+      });
+    });
+
+    window.addEventListener('click', () => {
+      this.closeMenubarDropdowns();
+    });
+
+    // Menubar command execution
+    document.querySelectorAll('.menu-entry[data-cmd]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.closeMenubarDropdowns();
+        const cmd = el.getAttribute('data-cmd')!;
+        this.executeCommand(cmd);
+      });
+    });
+  }
+
+  private closeMenubarDropdowns() {
+    document.querySelectorAll('.menu-dropdown.show').forEach((dd) => dd.classList.remove('show'));
+    document.querySelectorAll('.menu-item.active').forEach((mi) => mi.classList.remove('active'));
+    this.activeMenuDropdown = null;
   }
 
   private setupUIInteractions() {
@@ -249,7 +543,13 @@ class AstroCodeApp {
       this.termMgr.startSession(this.currentWorkspace);
       this.switchPanelView('terminal');
     });
-    document.getElementById('btn-kill-terminal')?.addEventListener('click', () => this.termMgr.kill());
+    document.getElementById('btn-split-terminal')?.addEventListener('click', () => {
+      this.termMgr.splitActiveSession();
+      this.switchPanelView('terminal');
+    });
+    document.getElementById('btn-kill-terminal')?.addEventListener('click', () => {
+      this.termMgr.killSession();
+    });
     document.getElementById('btn-close-panel')?.addEventListener('click', () => this.togglePanel(false));
     document.getElementById('btn-maximize-panel')?.addEventListener('click', () => {
       const panel = document.getElementById('bottom-panel')!;
@@ -261,51 +561,192 @@ class AstroCodeApp {
     // Editor Tab Actions
     document.getElementById('btn-close-all-tabs')?.addEventListener('click', () => this.monacoMgr.closeAllTabs());
     document.getElementById('btn-split-editor')?.addEventListener('click', () => {
-      const active = this.monacoMgr.getActiveTab();
-      if (active) {
-        alert('Editor split preview activated.');
-      }
+      this.monacoMgr.toggleSplitEditor();
     });
 
     // Explorer Header Actions
-    document.getElementById('btn-new-file')?.addEventListener('click', async () => {
-      if (!this.currentWorkspace) return;
-      const name = prompt('New File Name:');
-      if (name) {
-        await EditorAPI.createFile(`${this.currentWorkspace}/${name}`);
-        await this.explorerMgr.refresh();
-        this.monacoMgr.openFile(`${this.currentWorkspace}/${name}`);
-      }
+    document.getElementById('btn-new-file')?.addEventListener('click', () => {
+      this.explorerMgr.startInlineCreate(false);
     });
 
-    document.getElementById('btn-new-folder')?.addEventListener('click', async () => {
-      if (!this.currentWorkspace) return;
-      const name = prompt('New Folder Name:');
-      if (name) {
-        await EditorAPI.createFolder(`${this.currentWorkspace}/${name}`);
-        await this.explorerMgr.refresh();
-      }
+    document.getElementById('btn-new-folder')?.addEventListener('click', () => {
+      this.explorerMgr.startInlineCreate(true);
     });
 
     document.getElementById('btn-refresh-explorer')?.addEventListener('click', () => this.explorerMgr.refresh());
     document.getElementById('btn-collapse-explorer')?.addEventListener('click', () => this.explorerMgr.collapseAll());
 
-    // Welcome Screen Actions
+    // Welcome Screen & Explorer Empty Actions
     document.getElementById('welcome-new-file')?.addEventListener('click', () => {
       this.monacoMgr.openFile(`Untitled-${Date.now() % 1000}.txt`, '');
     });
 
-    document.getElementById('welcome-open-folder')?.addEventListener('click', async () => {
-      const selected = await EditorAPI.openFolderDialog();
-      if (selected) this.openWorkspace(selected);
+    document.getElementById('welcome-open-folder')?.addEventListener('click', () => this.triggerOpenFolder());
+    document.getElementById('btn-open-folder-welcome')?.addEventListener('click', () => this.triggerOpenFolder());
+
+    // Delegated click on file-tree so any "Open Folder" button in empty guide works dynamically
+    document.getElementById('file-tree')?.addEventListener('click', (e) => {
+      const target = (e.target as HTMLElement).closest('#btn-open-folder-welcome, #btn-open-folder-welcome-inner, .empty-workspace-guide .action-btn');
+      if (target) {
+        this.triggerOpenFolder();
+      }
     });
 
-    // Menubar command items
-    document.querySelectorAll('.menu-entry[data-cmd]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const cmd = el.getAttribute('data-cmd')!;
-        this.executeCommand(cmd);
-      });
+    // Status Bar Click Actions
+    this.setupStatusBarInteractions();
+  }
+
+  private setupStatusBarInteractions() {
+    // Git Branch Picker / Creator
+    document.getElementById('status-git-branch')?.addEventListener('click', async () => {
+      if (!this.currentWorkspace || !this.gitMgr.isRepo()) return;
+
+      const branches = await GitAPI.getBranches(this.currentWorkspace);
+      const items: QuickItem[] = [
+        {
+          id: 'create-branch',
+          label: '+ Create New Branch...',
+          detail: 'Create and checkout a new git branch',
+          icon: 'codicon-git-branch',
+          action: async () => {
+            const name = prompt('New Branch Name:');
+            if (name && name.trim()) {
+              await GitAPI.createBranch(this.currentWorkspace, name.trim());
+              await this.gitMgr.refresh();
+              this.log('Git', `Switched to new branch: ${name.trim()}`);
+            }
+          }
+        },
+        ...branches.map((b) => ({
+          id: b.name,
+          label: b.name,
+          detail: b.isCurrent ? 'Current branch' : (b.isRemote ? 'Remote branch' : 'Local branch'),
+          icon: 'codicon-git-branch',
+          action: async () => {
+            await GitAPI.checkoutBranch(this.currentWorkspace, b.name);
+            await this.gitMgr.refresh();
+            this.log('Git', `Switched to branch: ${b.name}`);
+          }
+        }))
+      ];
+
+      this.quickOpenMgr.showCustomPalette('Select a branch to checkout...', items);
+    });
+
+    // Git Sync (Pull & Push)
+    document.getElementById('status-git-sync')?.addEventListener('click', async () => {
+      if (!this.currentWorkspace || !this.gitMgr.isRepo()) return;
+      const syncEl = document.getElementById('status-git-sync');
+      syncEl?.classList.add('sync-spinning');
+      this.log('Git', 'Syncing changes with remote repository...');
+
+      try {
+        await GitAPI.pull(this.currentWorkspace);
+        await GitAPI.push(this.currentWorkspace);
+        await this.gitMgr.refresh();
+        this.log('Git', 'Sync completed successfully.');
+      } catch (err: any) {
+        this.log('Git', `Sync failed: ${err?.message || err}`);
+      } finally {
+        syncEl?.classList.remove('sync-spinning');
+      }
+    });
+
+    // Problems count click -> open problems view
+    document.getElementById('status-problems-count')?.addEventListener('click', () => {
+      this.togglePanel(true);
+      this.switchPanelView('problems');
+    });
+
+    // Cursor position -> Go to Line
+    document.getElementById('status-cursor-pos')?.addEventListener('click', () => {
+      this.quickOpenMgr.showGoToLine();
+    });
+
+    // Indentation picker
+    document.getElementById('status-indent')?.addEventListener('click', () => {
+      const items: QuickItem[] = [
+        {
+          id: 'indent-2',
+          label: 'Indent Using Spaces: 2',
+          detail: 'Change tab size to 2 spaces',
+          icon: 'codicon-list-flat',
+          action: () => {
+            this.monacoMgr.setTabSize(2, true);
+            const indentEl = document.getElementById('status-indent');
+            if (indentEl) indentEl.textContent = 'Spaces: 2';
+          }
+        },
+        {
+          id: 'indent-4',
+          label: 'Indent Using Spaces: 4',
+          detail: 'Change tab size to 4 spaces',
+          icon: 'codicon-list-flat',
+          action: () => {
+            this.monacoMgr.setTabSize(4, true);
+            const indentEl = document.getElementById('status-indent');
+            if (indentEl) indentEl.textContent = 'Spaces: 4';
+          }
+        },
+        {
+          id: 'indent-8',
+          label: 'Indent Using Spaces: 8',
+          detail: 'Change tab size to 8 spaces',
+          icon: 'codicon-list-flat',
+          action: () => {
+            this.monacoMgr.setTabSize(8, true);
+            const indentEl = document.getElementById('status-indent');
+            if (indentEl) indentEl.textContent = 'Spaces: 8';
+          }
+        },
+        {
+          id: 'indent-tabs',
+          label: 'Indent Using Tabs',
+          detail: 'Insert tab characters',
+          icon: 'codicon-list-flat',
+          action: () => {
+            this.monacoMgr.setTabSize(4, false);
+            const indentEl = document.getElementById('status-indent');
+            if (indentEl) indentEl.textContent = 'Tabs';
+          }
+        }
+      ];
+      this.quickOpenMgr.showCustomPalette('Select Indentation Setting...', items);
+    });
+
+    // EOL Toggle (LF / CRLF)
+    document.getElementById('status-eol')?.addEventListener('click', () => {
+      const eolEl = document.getElementById('status-eol');
+      const isLF = eolEl?.textContent === 'LF';
+      const next = isLF ? 'CRLF' : 'LF';
+      this.monacoMgr.setEOL(isLF ? monaco.editor.EndOfLineSequence.CRLF : monaco.editor.EndOfLineSequence.LF);
+      if (eolEl) eolEl.textContent = next;
+    });
+
+    // Language Selector
+    document.getElementById('status-language')?.addEventListener('click', () => {
+      const languages = [
+        'typescript', 'javascript', 'html', 'css', 'json', 'go', 'python',
+        'rust', 'cpp', 'c', 'csharp', 'java', 'markdown', 'shell', 'yaml', 'xml', 'sql', 'php'
+      ];
+      const items: QuickItem[] = languages.map((lang) => ({
+        id: lang,
+        label: lang,
+        detail: `Select language mode for ${lang}`,
+        icon: 'codicon-code',
+        action: () => {
+          this.monacoMgr.setLanguage(lang);
+          const langEl = document.getElementById('status-language');
+          if (langEl) langEl.textContent = lang;
+        }
+      }));
+      this.quickOpenMgr.showCustomPalette('Select Language Mode...', items);
+    });
+
+    // Notification bell -> toggle output panel
+    document.getElementById('status-notification')?.addEventListener('click', () => {
+      this.togglePanel();
+      this.switchPanelView('output');
     });
   }
 
@@ -319,6 +760,12 @@ class AstroCodeApp {
       } else if (isCtrl && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault();
         this.quickOpenMgr.showCommandPalette();
+      } else if (isCtrl && e.key === 'g' && !e.shiftKey) {
+        e.preventDefault();
+        this.quickOpenMgr.showGoToLine();
+      } else if (isCtrl && (e.key === 'o' || e.key === 'O') && !e.shiftKey) {
+        e.preventDefault();
+        this.triggerOpenFolder();
       } else if (isCtrl && e.key === 's' && !e.shiftKey) {
         e.preventDefault();
         this.monacoMgr.saveActiveFile();
@@ -348,6 +795,9 @@ class AstroCodeApp {
       } else if (isCtrl && e.key === ',') {
         e.preventDefault();
         this.switchSidebarView('settings');
+      } else if (e.key === 'F11') {
+        e.preventDefault();
+        this.toggleFullscreen();
       }
     });
   }
@@ -384,7 +834,6 @@ class AstroCodeApp {
         sidebar.style.width = `${newWidth}px`;
         this.termMgr.fit();
       } else if (isResizingPanel) {
-        const titlebarHeight = 35;
         const statusbarHeight = 22;
         const totalHeight = window.innerHeight;
         const newHeight = Math.max(60, Math.min(window.innerHeight - 100, totalHeight - e.clientY - statusbarHeight));
@@ -408,6 +857,17 @@ class AstroCodeApp {
     });
   }
 
+  public async triggerOpenFolder() {
+    try {
+      const selected = await EditorAPI.openFolderDialog();
+      if (selected) {
+        await this.openWorkspace(selected);
+      }
+    } catch (err) {
+      console.error('Failed to open workspace folder:', err);
+    }
+  }
+
   public async openWorkspace(path: string) {
     this.currentWorkspace = path;
     await EditorAPI.setWorkspace(path);
@@ -417,6 +877,9 @@ class AstroCodeApp {
     const titleWorkspaceName = document.getElementById('titlebar-workspace-name')!;
     titleWorkspaceName.textContent = `${folderName} — AstroCode`;
 
+    const breadcrumbWorkspace = document.getElementById('breadcrumb-workspace');
+    if (breadcrumbWorkspace) breadcrumbWorkspace.textContent = folderName;
+
     await this.explorerMgr.loadWorkspace(path);
     this.searchMgr.setWorkspace(path);
     await this.gitMgr.setWorkspace(path);
@@ -424,12 +887,24 @@ class AstroCodeApp {
     // Start terminal in workspace directory
     await this.termMgr.startSession(path);
 
-    // Index files for Quick Open
+    // Fast index files for Quick Open
     this.indexWorkspaceFiles(path);
     this.loadRecentWorkspaces();
+    this.log('AstroCode', `Opened workspace: ${path}`);
   }
 
   private async indexWorkspaceFiles(path: string) {
+    const allFiles = await EditorAPI.getAllFiles(path);
+    if (allFiles && allFiles.length > 0) {
+      const items = allFiles.map((rel) => ({
+        name: rel.split('/').pop() || rel,
+        path: `${path}/${rel}`
+      }));
+      this.quickOpenMgr.setFiles(items);
+      return;
+    }
+
+    // Fallback if GetAllFiles is empty
     const tree = await EditorAPI.getDirectoryTree(path);
     if (!tree) return;
 
@@ -468,10 +943,8 @@ class AstroCodeApp {
 
   private switchSidebarView(view: string) {
     const views = ['explorer', 'search', 'git', 'settings'];
-    const sidebar = document.getElementById('sidebar')!;
 
     if (this.activeSidebarView === view && this.isSidebarVisible) {
-      // Toggle sidebar off if clicked on same view
       this.toggleSidebar(false);
       return;
     }
@@ -540,8 +1013,8 @@ class AstroCodeApp {
   private showContextMenu(x: number, y: number, items: Array<{ label?: string; action?: () => void; type?: string }>) {
     const menu = document.getElementById('context-menu')!;
     menu.innerHTML = '';
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
+    menu.style.left = `${Math.min(x, window.innerWidth - 200)}px`;
+    menu.style.top = `${Math.min(y, window.innerHeight - 250)}px`;
     menu.style.display = 'block';
 
     items.forEach((item) => {
@@ -577,16 +1050,15 @@ class AstroCodeApp {
         label: 'File: Open Folder...',
         detail: 'Open a workspace directory',
         icon: 'codicon-folder-opened',
-        action: async () => {
-          const path = await EditorAPI.openFolderDialog();
-          if (path) this.openWorkspace(path);
-        }
+        shortcut: 'Ctrl+K Ctrl+O',
+        action: () => this.triggerOpenFolder()
       },
       {
         id: 'workbench.action.files.newUntitledFile',
         label: 'File: New Text File',
         detail: 'Create a new untitled buffer',
         icon: 'codicon-new-file',
+        shortcut: 'Ctrl+N',
         action: () => this.monacoMgr.openFile(`Untitled-${Date.now() % 1000}.txt`, '')
       },
       {
@@ -594,6 +1066,7 @@ class AstroCodeApp {
         label: 'File: Save',
         detail: 'Save current active file to disk',
         icon: 'codicon-save',
+        shortcut: 'Ctrl+S',
         action: () => this.monacoMgr.saveActiveFile()
       },
       {
@@ -601,6 +1074,7 @@ class AstroCodeApp {
         label: 'File: Save All',
         detail: 'Save all dirty open buffers',
         icon: 'codicon-save-all',
+        shortcut: 'Ctrl+Shift+S',
         action: () => this.monacoMgr.saveAllFiles()
       },
       {
@@ -608,47 +1082,153 @@ class AstroCodeApp {
         label: 'View: Close Active Editor',
         detail: 'Close current editor tab',
         icon: 'codicon-close',
+        shortcut: 'Ctrl+W',
         action: () => {
           const tab = this.monacoMgr.getActiveTab();
           if (tab) this.monacoMgr.closeTab(tab.path);
         }
       },
       {
+        id: 'editor.action.undo',
+        label: 'Edit: Undo',
+        detail: 'Undo the last action',
+        icon: 'codicon-discard',
+        shortcut: 'Ctrl+Z',
+        action: () => this.monacoMgr.executeEditorAction('editor.action.undo')
+      },
+      {
+        id: 'editor.action.redo',
+        label: 'Edit: Redo',
+        detail: 'Redo the last undone action',
+        icon: 'codicon-redo',
+        shortcut: 'Ctrl+Y',
+        action: () => this.monacoMgr.executeEditorAction('editor.action.redo')
+      },
+      {
+        id: 'editor.action.find',
+        label: 'Edit: Find',
+        detail: 'Find text in current editor',
+        icon: 'codicon-search',
+        shortcut: 'Ctrl+F',
+        action: () => this.monacoMgr.executeEditorAction('editor.action.find')
+      },
+      {
+        id: 'editor.action.replace',
+        label: 'Edit: Replace',
+        detail: 'Replace text in current editor',
+        icon: 'codicon-replace',
+        shortcut: 'Ctrl+H',
+        action: () => this.monacoMgr.executeEditorAction('editor.action.replace')
+      },
+      {
+        id: 'workbench.action.findInFiles',
+        label: 'Edit: Find in Files',
+        detail: 'Search for text across workspace files',
+        icon: 'codicon-search',
+        shortcut: 'Ctrl+Shift+F',
+        action: () => {
+          this.switchSidebarView('search');
+          this.searchMgr.focus();
+        }
+      },
+      {
+        id: 'editor.action.selectAll',
+        label: 'Selection: Select All',
+        detail: 'Select all text in editor',
+        icon: 'codicon-selection',
+        shortcut: 'Ctrl+A',
+        action: () => this.monacoMgr.executeEditorAction('editor.action.selectAll')
+      },
+      {
+        id: 'editor.action.copyLinesDownAction',
+        label: 'Selection: Copy Line Down',
+        detail: 'Duplicate current line downwards',
+        icon: 'codicon-copy',
+        shortcut: 'Shift+Alt+Down',
+        action: () => this.monacoMgr.executeEditorAction('editor.action.copyLinesDownAction')
+      },
+      {
+        id: 'editor.action.moveLinesDownAction',
+        label: 'Selection: Move Line Down',
+        detail: 'Move current line downwards',
+        icon: 'codicon-arrow-down',
+        shortcut: 'Alt+Down',
+        action: () => this.monacoMgr.executeEditorAction('editor.action.moveLinesDownAction')
+      },
+      {
+        id: 'workbench.action.showCommands',
+        label: 'View: Command Palette...',
+        detail: 'Open command palette',
+        icon: 'codicon-terminal',
+        shortcut: 'Ctrl+Shift+P',
+        action: () => this.quickOpenMgr.showCommandPalette()
+      },
+      {
         id: 'workbench.action.toggleSidebar',
         label: 'View: Toggle Primary Side Bar',
         detail: 'Show or hide explorer/search sidebar',
         icon: 'codicon-layout-sidebar-left',
+        shortcut: 'Ctrl+B',
         action: () => this.toggleSidebar()
+      },
+      {
+        id: 'workbench.action.toggleFullScreen',
+        label: 'View: Toggle Full Screen',
+        detail: 'Toggle full screen mode',
+        icon: 'codicon-screen-full',
+        shortcut: 'F11',
+        action: () => this.toggleFullscreen()
       },
       {
         id: 'workbench.action.terminal.toggleTerminal',
         label: 'View: Toggle Terminal',
         detail: 'Show or hide bottom integrated terminal',
         icon: 'codicon-terminal',
+        shortcut: 'Ctrl+`',
         action: () => this.togglePanel()
       },
       {
         id: 'workbench.action.terminal.new',
         label: 'Terminal: Create New Integrated Terminal',
-        detail: 'Spawn a new shell process in PTY',
+        detail: 'Spawn a new shell process in a new tab',
         icon: 'codicon-plus',
+        shortcut: 'Ctrl+Shift+`',
         action: () => {
           this.termMgr.startSession(this.currentWorkspace);
           this.switchPanelView('terminal');
         }
       },
       {
+        id: 'workbench.action.terminal.split',
+        label: 'Terminal: Split Terminal',
+        detail: 'Split terminal side-by-side',
+        icon: 'codicon-split-horizontal',
+        action: () => {
+          this.termMgr.splitActiveSession();
+          this.switchPanelView('terminal');
+        }
+      },
+      {
+        id: 'workbench.action.terminal.kill',
+        label: 'Terminal: Kill Active Terminal',
+        detail: 'Terminate the active terminal session',
+        icon: 'codicon-trash',
+        action: () => this.termMgr.killSession()
+      },
+      {
         id: 'workbench.view.explorer',
         label: 'View: Show Explorer',
         detail: 'Focus workspace file tree',
         icon: 'codicon-files',
+        shortcut: 'Ctrl+Shift+E',
         action: () => this.switchSidebarView('explorer')
       },
       {
         id: 'workbench.view.search',
         label: 'View: Show Search',
-        detail: 'Search for text across workspace files',
+        detail: 'Search across files',
         icon: 'codicon-search',
+        shortcut: 'Ctrl+Shift+F',
         action: () => this.switchSidebarView('search')
       },
       {
@@ -656,6 +1236,7 @@ class AstroCodeApp {
         label: 'View: Show Source Control',
         detail: 'Manage Git staged files and commits',
         icon: 'codicon-source-control',
+        shortcut: 'Ctrl+Shift+G',
         action: () => this.switchSidebarView('git')
       },
       {
@@ -663,6 +1244,7 @@ class AstroCodeApp {
         label: 'Preferences: Open Settings (UI)',
         detail: 'Customize AstroCode editor & terminal options',
         icon: 'codicon-settings-gear',
+        shortcut: 'Ctrl+,',
         action: () => this.switchSidebarView('settings')
       },
       {
@@ -692,10 +1274,18 @@ class AstroCodeApp {
         }
       },
       {
+        id: 'workbench.action.showAbout',
+        label: 'Help: About AstroCode',
+        detail: 'Show version and environment details',
+        icon: 'codicon-info',
+        action: () => this.showAbout()
+      },
+      {
         id: 'git.commit',
         label: 'Git: Commit Staged',
         detail: 'Commit staged changes to repository',
         icon: 'codicon-check',
+        shortcut: 'Ctrl+Enter',
         action: () => this.gitMgr.commit()
       },
       {
@@ -728,10 +1318,14 @@ class AstroCodeApp {
   }
 
   private executeCommand(cmdId: string) {
-    const cmd = this.quickOpenMgr['allCommands'].find((c: QuickItem) => c.id === cmdId);
+    const cmd = this.quickOpenMgr.getAllCommands().find((c: QuickItem) => c.id === cmdId);
     if (cmd) {
       cmd.action();
     }
+  }
+
+  private escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 }
 

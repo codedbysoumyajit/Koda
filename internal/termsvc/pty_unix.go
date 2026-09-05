@@ -6,6 +6,7 @@ package termsvc
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/creack/pty"
 )
@@ -15,7 +16,7 @@ type ptySession struct {
 	cmd  *exec.Cmd
 }
 
-func startPty(cwd string) (*ptySession, error) {
+func getDefaultShell() string {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/bash"
@@ -23,6 +24,11 @@ func startPty(cwd string) (*ptySession, error) {
 			shell = "/bin/sh"
 		}
 	}
+	return shell
+}
+
+func startPty(cwd string) (*ptySession, string, error) {
+	shell := getDefaultShell()
 
 	cmd := exec.Command(shell)
 	if cwd != "" {
@@ -32,13 +38,14 @@ func startPty(cwd string) (*ptySession, error) {
 
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
+	title := filepath.Base(shell)
 	return &ptySession{
 		ptmx: ptmx,
 		cmd:  cmd,
-	}, nil
+	}, title, nil
 }
 
 func (s *ptySession) Read(p []byte) (int, error) {

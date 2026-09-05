@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"os"
 
 	"astrocode/internal/editorsvc"
 	"astrocode/internal/gitsvc"
@@ -16,6 +17,16 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
+
+func init() {
+	// On Linux Wayland sessions (e.g. KDE Plasma, GNOME), GTK3 does not negotiate frameless
+	// client-side decorations properly with KWin/Wayland, causing a duplicate native titlebar
+	// to appear above the custom titlebar. Setting GDK_BACKEND=x11 routes through XWayland,
+	// allowing frameless mode, window dragging, and controls to work seamlessly.
+	if os.Getenv("GDK_BACKEND") == "" {
+		_ = os.Setenv("GDK_BACKEND", "x11")
+	}
+}
 
 //go:embed all:frontend/dist
 var assets embed.FS
@@ -38,14 +49,16 @@ func main() {
 		Height:            820,
 		MinWidth:          800,
 		MinHeight:         600,
-		Frameless:         false,
+		Frameless:         true,
+		CSSDragProperty:   "--wails-draggable",
+		CSSDragValue:      "drag",
 		StartHidden:       false,
 		HideWindowOnClose: false,
-		BackgroundColour:  &options.RGBA{R: 30, G: 30, B: 30, A: 255},
+		BackgroundColour:  &options.RGBA{R: 24, G: 24, B: 24, A: 255},
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		OnStartup:        app.startup,
+		OnStartup: app.startup,
 		Bind: []interface{}{
 			app,
 			editorSvc,
@@ -63,7 +76,7 @@ func main() {
 			BackdropType:         windows.Auto,
 		},
 		Mac: &mac.Options{
-			TitleBar:             mac.TitleBarDefault(),
+			TitleBar:             mac.TitleBarHidden(),
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 		},

@@ -6,6 +6,10 @@ export class GitManager {
   private onOpenDiffCallback?: (filePath: string, oldContent: string, newContent: string, staged: boolean) => void;
   private onBranchChangeCallback?: (branch: string, ahead: number, behind: number) => void;
 
+  private isStagedCollapsed: boolean = false;
+  private isChangesCollapsed: boolean = false;
+  private isUntrackedCollapsed: boolean = false;
+
   constructor(
     private commitInput: HTMLTextAreaElement,
     private stagedListEl: HTMLElement,
@@ -30,6 +34,14 @@ export class GitManager {
   public async setWorkspace(path: string) {
     this.currentRepoPath = path;
     await this.refresh();
+  }
+
+  public getRepoPath(): string {
+    return this.currentRepoPath;
+  }
+
+  public isRepo(): boolean {
+    return !!this.currentStatus?.isRepo;
   }
 
   private setupListeners() {
@@ -67,6 +79,40 @@ export class GitManager {
         }
       };
     }
+
+    // Collapsible group headers
+    const stagedHeader = document.querySelector('#git-group-staged .git-group-header') as HTMLElement;
+    stagedHeader?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.icon-btn')) return;
+      this.isStagedCollapsed = !this.isStagedCollapsed;
+      this.stagedListEl.style.display = this.isStagedCollapsed ? 'none' : 'block';
+      const chevron = stagedHeader.querySelector('.codicon') as HTMLElement;
+      if (chevron) {
+        chevron.className = `codicon ${this.isStagedCollapsed ? 'codicon-chevron-right' : 'codicon-chevron-down'}`;
+      }
+    });
+
+    const changesHeader = document.querySelector('#git-group-changes .git-group-header') as HTMLElement;
+    changesHeader?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.icon-btn')) return;
+      this.isChangesCollapsed = !this.isChangesCollapsed;
+      this.changesListEl.style.display = this.isChangesCollapsed ? 'none' : 'block';
+      const chevron = changesHeader.querySelector('.codicon') as HTMLElement;
+      if (chevron) {
+        chevron.className = `codicon ${this.isChangesCollapsed ? 'codicon-chevron-right' : 'codicon-chevron-down'}`;
+      }
+    });
+
+    const untrackedHeader = document.querySelector('#git-group-untracked .git-group-header') as HTMLElement;
+    untrackedHeader?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.icon-btn')) return;
+      this.isUntrackedCollapsed = !this.isUntrackedCollapsed;
+      this.untrackedListEl.style.display = this.isUntrackedCollapsed ? 'none' : 'block';
+      const chevron = untrackedHeader.querySelector('.codicon') as HTMLElement;
+      if (chevron) {
+        chevron.className = `codicon ${this.isUntrackedCollapsed ? 'codicon-chevron-right' : 'codicon-chevron-down'}`;
+      }
+    });
   }
 
   public async refresh() {
@@ -77,6 +123,7 @@ export class GitManager {
       this.currentStatus = null;
       this.badgeEl.style.display = 'none';
       if (this.onBranchChangeCallback) this.onBranchChangeCallback('', 0, 0);
+      this.render();
       return;
     }
 
@@ -102,14 +149,41 @@ export class GitManager {
 
   public async commit() {
     const msg = this.commitInput.value.trim();
-    if (!msg || !this.currentRepoPath) return;
+    if (!this.currentRepoPath) return;
+
+    if (!msg) {
+      this.commitInput.focus();
+      this.commitInput.placeholder = 'Please enter a commit message...';
+      return;
+    }
+
+    if (
+      this.currentStatus &&
+      this.currentStatus.stagedFiles.length === 0 &&
+      this.currentStatus.unstagedFiles.length === 0 &&
+      this.currentStatus.untrackedFiles.length === 0
+    ) {
+      alert('There are no changes to commit.');
+      return;
+    }
 
     try {
+      // If no staged changes exist but changes exist, auto-stage them (VS Code behavior)
+      if (
+        this.currentStatus &&
+        this.currentStatus.stagedFiles.length === 0 &&
+        (this.currentStatus.unstagedFiles.length > 0 || this.currentStatus.untrackedFiles.length > 0)
+      ) {
+        await GitAPI.stageAll(this.currentRepoPath);
+      }
+
       await GitAPI.commit(this.currentRepoPath, msg);
       this.commitInput.value = '';
+      this.commitInput.placeholder = 'Message (Ctrl+Enter to commit)';
       await this.refresh();
     } catch (e: any) {
-      alert(`Commit error: ${e?.message || e}`);
+      const errText = typeof e === 'string' ? e : e?.message || JSON.stringify(e);
+      alert(`Commit error: ${errText.replace(/^exit status \d+:\s*/, '')}`);
     }
   }
 
@@ -117,7 +191,7 @@ export class GitManager {
     if (!this.currentStatus) {
       this.stagedListEl.innerHTML = '';
       this.changesListEl.innerHTML = '';
-      this.untrackedListEl.innerHTML = '';
+      this.untrackedListEl.innerHTML = '<div class="empty-workspace-guide"><p>Current workspace is not a Git repository.</p></div>';
       return;
     }
 
@@ -169,7 +243,7 @@ export class GitManager {
 
     if (staged) {
       const unstageBtn = document.createElement('button');
-      unstageBtn.className = 'icon-btn';
+      unstageBtn.className = 'icon-btn-tiny';
       unstageBtn.title = 'Unstage Changes';
       unstageBtn.innerHTML = '<i class="codicon codicon-remove"></i>';
       unstageBtn.onclick = async (e) => {
@@ -180,7 +254,7 @@ export class GitManager {
       actions.appendChild(unstageBtn);
     } else {
       const stageBtn = document.createElement('button');
-      stageBtn.className = 'icon-btn';
+      stageBtn.className = 'icon-btn-tiny';
       stageBtn.title = 'Stage Changes';
       stageBtn.innerHTML = '<i class="codicon codicon-add"></i>';
       stageBtn.onclick = async (e) => {
@@ -190,7 +264,7 @@ export class GitManager {
       };
 
       const discardBtn = document.createElement('button');
-      discardBtn.className = 'icon-btn';
+      discardBtn.className = 'icon-btn-tiny';
       discardBtn.title = 'Discard Changes';
       discardBtn.innerHTML = '<i class="codicon codicon-discard"></i>';
       discardBtn.onclick = async (e) => {

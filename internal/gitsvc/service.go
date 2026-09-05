@@ -31,7 +31,14 @@ func (s *GitService) runGit(repoPath string, args ...string) (string, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("%s: %s", err, strings.TrimSpace(stderr.String()))
+		errDetail := strings.TrimSpace(stderr.String())
+		if errDetail == "" {
+			errDetail = strings.TrimSpace(stdout.String())
+		}
+		if errDetail != "" {
+			return "", fmt.Errorf("%s", errDetail)
+		}
+		return "", err
 	}
 	return stdout.String(), nil
 }
@@ -199,10 +206,22 @@ func (s *GitService) DiscardChanges(repoPath, filePath string) error {
 }
 
 func (s *GitService) Commit(repoPath, message string) (string, error) {
-	if strings.TrimSpace(message) == "" {
+	msg := strings.TrimSpace(message)
+	if msg == "" {
 		return "", fmt.Errorf("commit message cannot be empty")
 	}
-	return s.runGit(repoPath, "commit", "-m", message)
+	// Check if any files are staged. If none, but changes exist, stage them first (VS Code commit experience)
+	status, err := s.GetStatus(repoPath)
+	if err == nil && len(status.StagedFiles) == 0 {
+		if len(status.UnstagedFiles) > 0 || len(status.UntrackedFiles) > 0 {
+			if stageErr := s.StageAll(repoPath); stageErr != nil {
+				return "", fmt.Errorf("failed to stage changes: %v", stageErr)
+			}
+		} else {
+			return "", fmt.Errorf("no changes to commit (working tree clean)")
+		}
+	}
+	return s.runGit(repoPath, "commit", "-m", msg)
 }
 
 func (s *GitService) GetBranches(repoPath string) ([]GitBranchInfo, error) {
@@ -233,6 +252,10 @@ func (s *GitService) GetBranches(repoPath string) ([]GitBranchInfo, error) {
 
 func (s *GitService) CheckoutBranch(repoPath, branchName string) (string, error) {
 	return s.runGit(repoPath, "checkout", branchName)
+}
+
+func (s *GitService) CreateBranch(repoPath, branchName string) (string, error) {
+	return s.runGit(repoPath, "checkout", "-b", branchName)
 }
 
 func (s *GitService) Push(repoPath string) (string, error) {

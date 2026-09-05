@@ -28,7 +28,13 @@ declare global {
       WindowMinimise?: () => void;
       WindowMaximise?: () => void;
       WindowUnmaximise?: () => void;
+      WindowToggleMaximise?: () => void;
+      WindowFullscreen?: () => void;
+      WindowUnfullscreen?: () => void;
+      WindowIsFullscreen?: () => Promise<boolean>;
+      WindowIsMaximised?: () => Promise<boolean>;
       WindowClose?: () => void;
+      [key: string]: any;
     };
   }
 }
@@ -176,6 +182,18 @@ export const EditorAPI = {
     if (window.go?.editorsvc?.EditorService?.RevealInFileExplorer) {
       return await window.go.editorsvc.EditorService.RevealInFileExplorer(path);
     }
+  },
+  saveFileDialog: async (defaultName: string): Promise<string> => {
+    if (window.go?.editorsvc?.EditorService?.SaveFileDialog) {
+      return await window.go.editorsvc.EditorService.SaveFileDialog(defaultName);
+    }
+    return '';
+  },
+  getAllFiles: async (rootPath: string): Promise<string[]> => {
+    if (window.go?.editorsvc?.EditorService?.GetAllFiles) {
+      return await window.go.editorsvc.EditorService.GetAllFiles(rootPath);
+    }
+    return [];
   }
 };
 
@@ -265,6 +283,12 @@ export const GitAPI = {
     }
     return '';
   },
+  createBranch: async (repoPath: string, branch: string): Promise<string> => {
+    if (window.go?.gitsvc?.GitService?.CreateBranch) {
+      return await window.go.gitsvc.GitService.CreateBranch(repoPath, branch);
+    }
+    return '';
+  },
   push: async (repoPath: string): Promise<string> => {
     if (window.go?.gitsvc?.GitService?.Push) {
       return await window.go.gitsvc.GitService.Push(repoPath);
@@ -344,6 +368,67 @@ export const SettingsAPI = {
     if (window.go?.settingssvc?.SettingsService?.AddRecentWorkspace) {
       return await window.go.settingssvc.SettingsService.AddRecentWorkspace(path);
     }
+  }
+};
+
+export const AppAPI = {
+  toggleFullscreen: async (): Promise<boolean> => {
+    if (window.go?.main?.App?.ToggleFullscreen) {
+      return await window.go.main.App.ToggleFullscreen();
+    }
+    if (window.runtime?.WindowFullscreen && window.runtime?.WindowUnfullscreen && window.runtime?.WindowIsFullscreen) {
+      const isFull = await window.runtime.WindowIsFullscreen();
+      if (isFull) {
+        window.runtime.WindowUnfullscreen();
+        return false;
+      } else {
+        window.runtime.WindowFullscreen();
+        return true;
+      }
+    }
+    return false;
+  },
+  toggleMaximize: async (): Promise<boolean> => {
+    if (window.go?.main?.App?.ToggleMaximize) {
+      return await window.go.main.App.ToggleMaximize();
+    }
+    if (window.runtime?.WindowToggleMaximise) {
+      window.runtime.WindowToggleMaximise();
+      if (window.runtime?.WindowIsMaximised) {
+        return await window.runtime.WindowIsMaximised();
+      }
+    }
+    return false;
+  },
+  minimize: async (): Promise<void> => {
+    if (window.go?.main?.App?.Minimize) {
+      return await window.go.main.App.Minimize();
+    }
+    window.runtime?.WindowMinimise?.();
+  },
+  close: async (): Promise<void> => {
+    if (window.go?.main?.App?.Close) {
+      return await window.go.main.App.Close();
+    }
+    window.runtime?.WindowClose?.();
+  },
+  isFullscreen: async (): Promise<boolean> => {
+    if (window.go?.main?.App?.IsFullscreen) {
+      return await window.go.main.App.IsFullscreen();
+    }
+    if (window.runtime?.WindowIsFullscreen) {
+      return await window.runtime.WindowIsFullscreen();
+    }
+    return false;
+  },
+  isMaximised: async (): Promise<boolean> => {
+    if (window.go?.main?.App?.IsMaximised) {
+      return await window.go.main.App.IsMaximised();
+    }
+    if (window.runtime?.WindowIsMaximised) {
+      return await window.runtime.WindowIsMaximised();
+    }
+    return false;
   }
 };
 

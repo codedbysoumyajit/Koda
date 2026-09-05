@@ -34,7 +34,7 @@ func (s *TerminalService) Startup(ctx context.Context) {
 
 func (s *TerminalService) CreateTerminal(cwd string) (TerminalSessionInfo, error) {
 	id := uuid.New().String()
-	sess, err := startPty(cwd)
+	sess, title, err := startPty(cwd)
 	if err != nil {
 		return TerminalSessionInfo{}, fmt.Errorf("failed to start pty: %w", err)
 	}
@@ -68,7 +68,7 @@ func (s *TerminalService) CreateTerminal(cwd string) (TerminalSessionInfo, error
 
 	return TerminalSessionInfo{
 		ID:    id,
-		Title: "bash",
+		Title: title,
 		Cwd:   cwd,
 	}, nil
 }

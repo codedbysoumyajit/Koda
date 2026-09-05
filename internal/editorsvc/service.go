@@ -36,9 +36,29 @@ func (s *EditorService) Startup(ctx context.Context) {
 }
 
 func (s *EditorService) OpenFolderDialog() (string, error) {
-	selected, err := wailsRuntime.OpenDirectoryDialog(s.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "Open Workspace Folder",
-	})
+	var selected string
+	var err error
+	if s.ctx != nil {
+		selected, err = wailsRuntime.OpenDirectoryDialog(s.ctx, wailsRuntime.OpenDialogOptions{
+			Title: "Open Workspace Folder",
+		})
+	}
+	// Fallback for Linux if selected is empty or error
+	if (err != nil || selected == "") && runtime.GOOS == "linux" {
+		if _, errZ := exec.LookPath("zenity"); errZ == nil {
+			out, errCmd := exec.Command("zenity", "--file-selection", "--directory", "--title=Open Workspace Folder").Output()
+			if errCmd == nil && len(out) > 0 {
+				selected = strings.TrimSpace(string(out))
+				err = nil
+			}
+		} else if _, errK := exec.LookPath("kdialog"); errK == nil {
+			out, errCmd := exec.Command("kdialog", "--getexistingdirectory", ".").Output()
+			if errCmd == nil && len(out) > 0 {
+				selected = strings.TrimSpace(string(out))
+				err = nil
+			}
+		}
+	}
 	if err != nil || selected == "" {
 		return "", err
 	}
@@ -52,6 +72,51 @@ func (s *EditorService) SetWorkspace(path string) {
 	s.mu.Unlock()
 
 	s.startWatching(path)
+}
+
+func (s *EditorService) SaveFileDialog(defaultName string) (string, error) {
+	if s.ctx == nil {
+		return "", fmt.Errorf("context not initialized")
+	}
+	return wailsRuntime.SaveFileDialog(s.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Save File",
+		DefaultFilename: defaultName,
+	})
+}
+
+func (s *EditorService) GetAllFiles(rootPath string) ([]string, error) {
+	if rootPath == "" {
+		s.mu.RLock()
+		rootPath = s.currentPath
+		s.mu.RUnlock()
+	}
+	if rootPath == "" {
+		return []string{}, nil
+	}
+
+	var files []string
+	maxFiles := 50000
+	err := filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if name == ".git" || name == "node_modules" || name == "dist" || name == "build" || name == ".wails" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, err := filepath.Rel(rootPath, path)
+		if err == nil {
+			files = append(files, rel)
+			if len(files) >= maxFiles {
+				return filepath.SkipAll
+			}
+		}
+		return nil
+	})
+	return files, err
 }
 
 func (s *EditorService) GetCurrentWorkspace() string {
