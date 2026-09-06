@@ -1,4 +1,5 @@
 import { EditorAPI, Events, FileNode } from '../services/api';
+import { getFileIconInfo, getFolderIconInfo } from './icons';
 
 export class ExplorerManager {
   private currentTree: FileNode | null = null;
@@ -197,9 +198,13 @@ export class ExplorerManager {
       chevron.className = `codicon tree-chevron ${isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}`;
       content.appendChild(chevron);
 
-      icon.className = `codicon ${isExpanded ? 'codicon-folder-opened' : 'codicon-folder'} folder-icon`;
+      const folderInfo = getFolderIconInfo(node.name, isExpanded);
+      icon.className = `codicon ${folderInfo.glyphClass} folder-icon ${folderInfo.colorClass}`;
+      if (folderInfo.color) icon.style.color = folderInfo.color;
     } else {
-      icon.className = `codicon ${this.getFileCodicon(node.name)} file-icon`;
+      const fileInfo = getFileIconInfo(node.name);
+      icon.className = `codicon ${fileInfo.glyphClass} file-icon ${fileInfo.colorClass}`;
+      if (fileInfo.color) icon.style.color = fileInfo.color;
     }
 
     content.appendChild(icon);

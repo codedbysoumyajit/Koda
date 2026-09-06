@@ -62,7 +62,7 @@ func (a *App) startup(ctx context.Context) {
 
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
-	return "Welcome to AstroCode, " + name + "!"
+	return "Welcome to Koda, " + name + "!"
 }
 
 // ToggleFullscreen toggles fullscreen state

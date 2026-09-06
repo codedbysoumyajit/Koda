@@ -4,6 +4,7 @@ bin/
 dist/
 frontend/dist/
 astrocode
+koda
 *.exe
 *.exe~
 *.dll

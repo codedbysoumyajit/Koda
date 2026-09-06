@@ -122,37 +122,88 @@ body.theme-vs-light {
   --border-color: #e7e7e7;
 }
 
-* {
+/* Universal Native Behavior Guards */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Allow selection strictly inside editable text areas */
+input, textarea, [contenteditable="true"], .monaco-editor, .monaco-editor *, .xterm, .xterm *, .selectable-text {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 html, body {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   font-family: var(--font-family-ui);
   font-size: 13px;
   background-color: var(--bg-editor);
   color: var(--fg-editor);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+/* Native VS Code Overlay Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 4px;
+  border-radius: 0;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Focus outline normalization */
+*:focus {
+  outline: none;
+}
+
+/* Remove default web search cancel button */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Prevent autofill styling glitch in WebKit */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--fg-input) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 .workbench {
@@ -162,6 +213,7 @@ html, body {
   height: 100vh;
   background-color: var(--bg-editor);
   overflow: hidden;
+  transform: translateZ(0);
 }
 
 /* Titlebar */
@@ -202,6 +254,40 @@ html, body {
 .app-icon {
   display: flex;
   align-items: center;
+}
+
+.titlebar-logo-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.welcome-logo-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 14px;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 8px 24px rgba(0, 122, 255, 0.35));
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s;
+}
+
+.welcome-logo-img:hover {
+  transform: scale(1.06);
+  filter: drop-shadow(0 12px 32px rgba(0, 122, 255, 0.55));
+}
+
+.about-logo-img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  margin-bottom: 8px;
 }
 
 .menubar {
@@ -1672,19 +1758,523 @@ body.native-titlebar .titlebar {
   margin: 4px 0;
 }
 
-/* About Card Modal */
+/* ==========================================================================
+   File & Folder Icons (VS Code Accurate Colors)
+   ========================================================================== */
+
+/* Folder Icons */
+.folder-icon {
+  margin-right: 6px;
+  font-size: 14px;
+}
+.folder-icon-default { color: #dcb67a; }
+.folder-icon-git { color: #f05032; }
+.folder-icon-node { color: #8bc34a; }
+.folder-icon-src { color: #42a5f5; }
+.folder-icon-build { color: #ff9800; }
+.folder-icon-test { color: #4caf50; }
+.folder-icon-media { color: #ab47bc; }
+.folder-icon-config { color: #00acc1; }
+.folder-icon-docs { color: #26a69a; }
+.folder-icon-components { color: #00bcd4; }
+.folder-icon-go { color: #00add8; }
+
+/* File Icons */
+.file-icon {
+  margin-right: 6px;
+  font-size: 14px;
+}
+.file-icon-go { color: #00add8; }
+.file-icon-ts { color: #3178c6; }
+.file-icon-react { color: #61dafb; }
+.file-icon-js { color: #f7df1e; }
+.file-icon-python { color: #3572a5; }
+.file-icon-rust { color: #dea584; }
+.file-icon-html { color: #e34c26; }
+.file-icon-css { color: #42a5f5; }
+.file-icon-scss { color: #c6538c; }
+.file-icon-vue { color: #41b883; }
+.file-icon-svelte { color: #ff3e00; }
+.file-icon-json { color: #cbcb41; }
+.file-icon-yaml { color: #cb171e; }
+.file-icon-config { color: #e5c07b; }
+.file-icon-markdown { color: #42a5f5; }
+.file-icon-text { color: #8a9199; }
+.file-icon-git { color: #f34f29; }
+.file-icon-docker { color: #2496ed; }
+.file-icon-npm { color: #cb3837; }
+.file-icon-lock { color: #e5c07b; }
+.file-icon-license { color: #e5c07b; }
+.file-icon-readme { color: #42a5f5; }
+.file-icon-pdf { color: #e53935; }
+.file-icon-c { color: #555555; }
+.file-icon-cpp { color: #f34b7d; }
+.file-icon-csharp { color: #178600; }
+.file-icon-java { color: #b07219; }
+.file-icon-kotlin { color: #7f52ff; }
+.file-icon-swift { color: #f05138; }
+.file-icon-php { color: #777bb4; }
+.file-icon-ruby { color: #701516; }
+.file-icon-lua { color: #000080; }
+.file-icon-shell { color: #89e051; }
+.file-icon-powershell { color: #29b6f6; }
+.file-icon-sql { color: #dad8d8; }
+.file-icon-image { color: #a074c4; }
+.file-icon-svg { color: #ff9900; }
+.file-icon-archive { color: #d19a66; }
+.file-icon-binary { color: #607d8b; }
+.file-icon-default { color: #8a9199; }
+
+/* ==========================================================================
+   VS Code Settings Tab View
+   ========================================================================== */
+#settings-editor-host {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-editor);
+  color: var(--fg-editor);
+  overflow: hidden;
+  user-select: none;
+}
+
+.settings-header {
+  padding: 12px 24px 0 24px;
+  background-color: var(--bg-editor);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.settings-search-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.settings-search-box {
+  position: relative;
+  flex: 1;
+  max-width: 640px;
+  display: flex;
+  align-items: center;
+}
+
+.settings-search-box .search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--fg-sidebar-text);
+  pointer-events: none;
+  font-size: 14px;
+}
+
+.settings-search-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 28px 0 32px;
+  background-color: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  color: #cccccc;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.settings-search-input:focus {
+  border-color: #007acc;
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+.settings-search-input::placeholder {
+  color: #858585;
+}
+
+.settings-search-clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--fg-sidebar-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.settings-search-clear:hover {
+  color: #ffffff;
+}
+
+.settings-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #cccccc;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.settings-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.settings-action-btn:focus {
+  border-color: #007acc;
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+.settings-tabs-bar {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+}
+
+.settings-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--fg-tab-inactive);
+  padding: 6px 4px 8px 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.settings-tab-btn.active {
+  color: #ffffff;
+  border-bottom-color: var(--border-tab-active);
+  font-weight: 500;
+}
+
+.settings-container-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.settings-toc {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  padding: 16px 0;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.settings-toc-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #858585;
+  padding: 0 20px 8px 20px;
+  letter-spacing: 0.5px;
+}
+
+.settings-toc-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #858585;
+  padding: 14px 20px 4px 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-toc-item {
+  padding: 6px 20px;
+  cursor: pointer;
+  color: var(--fg-sidebar-text);
+  transition: background-color 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.settings-toc-item.sub {
+  padding-left: 28px;
+  font-size: 12px;
+}
+
+.settings-toc-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.settings-toc-item.active {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.08);
+  font-weight: 500;
+}
+
+.settings-toc-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--border-tab-active);
+}
+
+.settings-main-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 36px 64px 36px;
+  max-width: 900px;
+}
+
+.settings-group-header {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 20px 0 16px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-group-header:first-child {
+  margin-top: 0;
+}
+
+.setting-row {
+  position: relative;
+  margin-bottom: 26px;
+  padding: 0 0 0 14px;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  transition: border-left-color 0.15s;
+}
+
+.setting-row:focus-within {
+  border-left-color: #007acc;
+  background: transparent;
+}
+
+.setting-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e7e7e7;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.3;
+}
+
+.setting-row-description {
+  font-size: 13px;
+  color: #9d9d9d;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.setting-row-note {
+  font-size: 11px;
+  color: #e5c07b;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.setting-control {
+  margin-top: 4px;
+}
+
+/* VS Code Accurate Custom Dropdown */
+.settings-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: #3c3c3c;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='16' height='16'%3E%3Cpath fill='%23cccccc' d='M7.976 10.072l4.357-4.357.62.618L8.284 11h-.618L3 6.333l.619-.618 4.357 4.357z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+  padding: 3px 28px 3px 8px !important;
+  width: 320px;
+  max-width: 100%;
+  height: 26px;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  color: #cccccc;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-family-ui);
+  box-sizing: border-box;
+}
+
+.settings-select:focus {
+  border-color: #007acc;
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+.settings-select option {
+  background-color: #252526;
+  color: #cccccc;
+  padding: 4px 8px;
+}
+
+/* VS Code Accurate Text Input */
+.settings-input-text {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  color: #cccccc;
+  font-size: 13px;
+  height: 26px;
+  padding: 3px 8px;
+  width: 480px;
+  max-width: 100%;
+  outline: none;
+  font-family: var(--font-family-ui);
+  box-sizing: border-box;
+}
+
+.settings-input-text:focus {
+  border-color: #007acc;
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+/* VS Code Accurate Number Input */
+.settings-input-number {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+  background-color: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  color: #cccccc;
+  font-size: 13px;
+  height: 26px;
+  padding: 3px 8px;
+  width: 120px;
+  outline: none;
+  font-family: var(--font-family-ui);
+  box-sizing: border-box;
+}
+
+.settings-input-number::-webkit-inner-spin-button,
+.settings-input-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.settings-input-number:focus {
+  border-color: #007acc;
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+/* VS Code Accurate Custom Checkbox */
+.settings-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #cccccc;
+  user-select: none;
+}
+
+.settings-checkbox {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background-color: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.settings-checkbox:focus {
+  border-color: #007acc;
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+.settings-checkbox:checked {
+  background-color: #007acc;
+  border-color: #007acc;
+}
+
+.settings-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+.settings-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #858585;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.settings-empty i {
+  font-size: 32px;
+}
+
+/* ==========================================================================
+   About Card Modal (Modern VS Code Dialog Card)
+   ========================================================================== */
 .about-card {
-  width: 440px;
+  width: 460px;
   max-width: 90vw;
   background-color: var(--bg-quickwidget);
   border: 1px solid var(--border-quickwidget);
   border-radius: 8px;
-  box-shadow: var(--shadow-quickwidget);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin: auto;
+  user-select: none;
 }
 
 .about-header {
@@ -1692,13 +2282,33 @@ body.native-titlebar .titlebar {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 6px;
+  gap: 4px;
 }
 
-.about-header h2 {
+.about-logo-wrapper {
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  padding: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.about-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.about-title {
   font-size: 20px;
   font-weight: 600;
   color: #ffffff;
+  letter-spacing: -0.2px;
 }
 
 .about-version {
@@ -1709,31 +2319,188 @@ body.native-titlebar .titlebar {
 .about-details {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 12px;
+  gap: 7px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 12px 16px;
   border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 12px;
+  font-family: var(--font-mono);
 }
 
 .about-row {
   display: flex;
   justify-content: space-between;
-  color: var(--fg-sidebar-text);
+  align-items: center;
+  color: #9d9d9d;
 }
 
-.about-row strong {
-  color: #ffffff;
+.about-row span:last-child, .about-row code {
+  color: #cccccc;
+}
+
+.about-row code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
 }
 
 .about-desc {
-  margin-top: 8px;
   font-size: 12px;
   color: #858585;
+  text-align: center;
   line-height: 1.4;
+  margin: 0;
 }
 
 .about-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
 }
+
+.about-footer .action-btn {
+  min-width: 70px;
+}
+
+/* ==========================================================================
+   Startup Opening Animation & Splash Screen (Native Look & Feel)
+   ========================================================================== */
+.startup-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1e1e1e;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: all;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.35s;
+}
+
+.startup-splash.splash-hidden {
+  opacity: 0;
+  transform: scale(1.025);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.splash-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: splashFadeIn 0.35s ease-out;
+}
+
+@keyframes splashFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.splash-logo-container {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.splash-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 8px 24px rgba(0, 122, 255, 0.45));
+  animation: splashPulse 2.2s ease-in-out infinite alternate;
+}
+
+.splash-glow {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.35) 0%, rgba(0, 188, 212, 0.15) 50%, transparent 75%);
+  filter: blur(12px);
+  animation: splashGlowPulse 2.4s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes splashPulse {
+  0% { transform: scale(0.98); }
+  100% { transform: scale(1.03); }
+}
+
+@keyframes splashGlowPulse {
+  0% { opacity: 0.5; transform: scale(0.9); }
+  100% { opacity: 0.9; transform: scale(1.15); }
+}
+
+.splash-app-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+  margin-bottom: 14px;
+  font-family: var(--font-family-ui);
+}
+
+.splash-progress-track {
+  width: 150px;
+  height: 3px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.splash-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  background: linear-gradient(90deg, #007acc, #00bcd4);
+  border-radius: 2px;
+  animation: splashProgressIndeterminate 1.4s infinite cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@keyframes splashProgressIndeterminate {
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  50% {
+    left: 30%;
+    width: 60%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
+}
+
+.splash-status-text {
+  font-size: 11.5px;
+  color: #858585;
+  letter-spacing: 0.2px;
+  font-family: var(--font-family-ui);
+}
+
+

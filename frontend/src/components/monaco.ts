@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor';
 import { EditorAPI, EditorSettings } from '../services/api';
+import { getFileIconInfo } from './icons';
 
 export interface EditorTab {
   path: string;
@@ -9,6 +10,7 @@ export interface EditorTab {
   isDirty: boolean;
   isDiff?: boolean;
   isUntitled?: boolean;
+  isCustom?: boolean;
 }
 
 export interface MarkerInfo {
@@ -22,7 +24,7 @@ export interface MarkerInfo {
 export class MonacoManager {
   private editor!: monaco.editor.IStandaloneCodeEditor;
   private splitEditorInstance: monaco.editor.IStandaloneCodeEditor | null = null;
-  private diffEditor!: monaco.editor.IStandaloneDiffEditor;
+  private diffEditor: monaco.editor.IStandaloneDiffEditor | null = null;
   private tabs: Map<string, EditorTab> = new Map();
   private activeTabPath: string | null = null;
   private activeSplitTabPath: string | null = null;
@@ -38,7 +40,8 @@ export class MonacoManager {
     private editorHost: HTMLElement,
     private diffHost: HTMLElement,
     private tabsListEl: HTMLElement,
-    private welcomeScreenEl: HTMLElement
+    private welcomeScreenEl: HTMLElement,
+    private settingsHost?: HTMLElement
   ) {}
 
   public init(settings: EditorSettings) {
@@ -60,16 +63,6 @@ export class MonacoManager {
       renderWhitespace: 'selection',
       bracketPairColorization: { enabled: true },
       guides: { indentation: true, bracketPairs: true }
-    });
-
-    // Create Monaco Diff Editor
-    this.diffEditor = monaco.editor.createDiffEditor(this.diffHost, {
-      theme: settings.theme || 'vs-dark',
-      fontSize: settings.fontSize || 14,
-      fontFamily: settings.fontFamily || "'Fira Code', 'Consolas', monospace",
-      automaticLayout: true,
-      readOnly: false,
-      renderSideBySide: true
     });
 
     // Cursor position listener
@@ -101,9 +94,23 @@ export class MonacoManager {
     // Window resize observer
     window.addEventListener('resize', () => {
       this.editor.layout();
-      this.diffEditor.layout();
+      this.diffEditor?.layout();
       this.splitEditorInstance?.layout();
     });
+  }
+
+  private getDiffEditor(): monaco.editor.IStandaloneDiffEditor {
+    if (!this.diffEditor) {
+      this.diffEditor = monaco.editor.createDiffEditor(this.diffHost, {
+        theme: this.currentSettings?.theme || 'vs-dark',
+        fontSize: this.currentSettings?.fontSize || 14,
+        fontFamily: this.currentSettings?.fontFamily || "'Fira Code', 'Consolas', monospace",
+        automaticLayout: true,
+        readOnly: false,
+        renderSideBySide: true
+      });
+    }
+    return this.diffEditor;
   }
 
   public applySettings(settings: EditorSettings) {
@@ -117,10 +124,12 @@ export class MonacoManager {
       lineNumbers: settings.lineNumbers as any
     };
     this.editor.updateOptions(opts);
-    this.diffEditor.updateOptions({
-      fontSize: settings.fontSize,
-      fontFamily: settings.fontFamily
-    });
+    if (this.diffEditor) {
+      this.diffEditor.updateOptions({
+        fontSize: settings.fontSize,
+        fontFamily: settings.fontFamily
+      });
+    }
     this.splitEditorInstance?.updateOptions(opts);
 
     if (settings.tabSize) {
@@ -195,7 +204,7 @@ export class MonacoManager {
     const originalModel = monaco.editor.createModel(oldContent, lang);
     const modifiedModel = monaco.editor.createModel(newContent, lang);
 
-    this.diffEditor.setModel({
+    this.getDiffEditor().setModel({
       original: originalModel,
       modified: modifiedModel
     });
@@ -212,13 +221,51 @@ export class MonacoManager {
     this.setActiveTab(diffKey);
   }
 
+  public cycleTab(forward: boolean = true) {
+    const keys = Array.from(this.tabs.keys());
+    if (keys.length <= 1) return;
+    const currentIndex = this.activeTabPath ? keys.indexOf(this.activeTabPath) : -1;
+    let nextIndex: number;
+    if (forward) {
+      nextIndex = (currentIndex + 1) % keys.length;
+    } else {
+      nextIndex = (currentIndex - 1 + keys.length) % keys.length;
+    }
+    this.setActiveTab(keys[nextIndex]);
+  }
+
+  public openSettingsTab() {
+    const settingsPath = 'koda://settings';
+    if (this.tabs.has(settingsPath)) {
+      this.setActiveTab(settingsPath);
+      return;
+    }
+
+    const uri = monaco.Uri.parse('koda://settings');
+    let model = monaco.editor.getModel(uri);
+    if (!model) {
+      model = monaco.editor.createModel('', 'plaintext', uri);
+    }
+
+    const tab: EditorTab = {
+      path: settingsPath,
+      name: 'Settings',
+      model,
+      isDirty: false,
+      isCustom: true
+    };
+
+    this.tabs.set(settingsPath, tab);
+    this.setActiveTab(settingsPath);
+  }
+
   public setActiveTab(filePath: string) {
     if (!this.tabs.has(filePath)) return;
 
     // Save viewstate of previous tab
     if (this.activeTabPath && this.tabs.has(this.activeTabPath)) {
       const prevTab = this.tabs.get(this.activeTabPath)!;
-      if (!prevTab.isDiff) {
+      if (!prevTab.isDiff && !prevTab.isCustom) {
         prevTab.viewState = this.editor.saveViewState();
       }
     }
@@ -226,12 +273,19 @@ export class MonacoManager {
     this.activeTabPath = filePath;
     const tab = this.tabs.get(filePath)!;
 
-    if (tab.isDiff) {
+    if (tab.isCustom) {
+      this.editorHost.style.display = 'none';
+      this.diffHost.style.display = 'none';
+      this.welcomeScreenEl.style.display = 'none';
+      if (this.settingsHost) this.settingsHost.style.display = 'flex';
+    } else if (tab.isDiff) {
+      if (this.settingsHost) this.settingsHost.style.display = 'none';
       this.editorHost.style.display = 'none';
       this.diffHost.style.display = 'block';
       this.welcomeScreenEl.style.display = 'none';
-      this.diffEditor.layout();
+      this.getDiffEditor().layout();
     } else {
+      if (this.settingsHost) this.settingsHost.style.display = 'none';
       this.diffHost.style.display = 'none';
       this.editorHost.style.display = 'block';
       this.welcomeScreenEl.style.display = 'none';
@@ -302,7 +356,7 @@ export class MonacoManager {
   public async saveActiveFile(): Promise<boolean> {
     if (!this.activeTabPath || !this.tabs.has(this.activeTabPath)) return false;
     const tab = this.tabs.get(this.activeTabPath)!;
-    if (tab.isDiff) return false;
+    if (tab.isDiff || tab.isCustom) return false;
 
     let targetPath = tab.path;
 
@@ -331,7 +385,7 @@ export class MonacoManager {
 
   public async saveAllFiles() {
     for (const tab of this.tabs.values()) {
-      if (tab.isDirty && !tab.isDiff) {
+      if (tab.isDirty && !tab.isDiff && !tab.isCustom) {
         if (tab.isUntitled) {
           await this.setActiveTab(tab.path);
           await this.saveActiveFile();
@@ -347,6 +401,9 @@ export class MonacoManager {
   public closeTab(filePath: string) {
     if (!this.tabs.has(filePath)) return;
     const tab = this.tabs.get(filePath)!;
+    if (tab.isCustom && this.settingsHost) {
+      this.settingsHost.style.display = 'none';
+    }
     tab.model.dispose();
     this.tabs.delete(filePath);
 
@@ -358,6 +415,7 @@ export class MonacoManager {
         this.activeTabPath = null;
         this.editorHost.style.display = 'none';
         this.diffHost.style.display = 'none';
+        if (this.settingsHost) this.settingsHost.style.display = 'none';
         this.welcomeScreenEl.style.display = 'flex';
         if (this.onTabChangeCallback) {
           this.onTabChangeCallback(null, []);
@@ -395,6 +453,7 @@ export class MonacoManager {
     this.activeTabPath = null;
     this.editorHost.style.display = 'none';
     this.diffHost.style.display = 'none';
+    if (this.settingsHost) this.settingsHost.style.display = 'none';
     this.welcomeScreenEl.style.display = 'flex';
     this.renderTabs();
     if (this.onTabChangeCallback) {
@@ -481,7 +540,15 @@ export class MonacoManager {
       tabEl.className = `tab ${path === this.activeTabPath ? 'active' : ''} ${tab.isDirty ? 'dirty' : ''}`;
       
       const icon = document.createElement('i');
-      icon.className = `codicon tab-icon ${this.getFileCodicon(tab.name)}`;
+      if (tab.isCustom || tab.path === 'koda://settings') {
+        icon.className = 'codicon tab-icon codicon-settings-gear';
+      } else if (tab.isDiff) {
+        icon.className = 'codicon tab-icon codicon-diff';
+      } else {
+        const fileInfo = getFileIconInfo(tab.name);
+        icon.className = `codicon tab-icon ${fileInfo.glyphClass} ${fileInfo.colorClass}`;
+        if (fileInfo.color) icon.style.color = fileInfo.color;
+      }
       
       const title = document.createElement('span');
       title.className = 'tab-title';

@@ -7,9 +7,10 @@ import { SearchManager } from './components/search';
 import { GitManager } from './components/git';
 import { QuickOpenManager, QuickItem } from './components/quickopen';
 import { SettingsManager } from './components/settings';
+import { getFileIconInfo } from './components/icons';
 import * as monaco from 'monaco-editor';
 
-class AstroCodeApp {
+class KodaApp {
   private monacoMgr!: MonacoManager;
   private termMgr!: TerminalManager;
   private explorerMgr!: ExplorerManager;
@@ -25,26 +26,33 @@ class AstroCodeApp {
   private activePanelView: string = 'terminal';
   private activeMenuDropdown: HTMLElement | null = null;
   private outputLogs: Map<string, string[]> = new Map([
-    ['AstroCode', ['[AstroCode] Application core ready. Monaco Editor and Multi-Terminal initialized.']],
+    ['Koda', ['[Koda] Application core ready. Monaco Editor and Multi-Terminal initialized.']],
     ['Git', ['[Git] Ready.']],
     ['Terminal', ['[Terminal] Ready.']]
   ]);
-  private currentOutputChannel: string = 'AstroCode';
+  private currentOutputChannel: string = 'Koda';
   private isOpeningFolder: boolean = false;
 
   public async start() {
+    const setSplashStatus = (status: string) => {
+      const el = document.getElementById('splash-status');
+      if (el) el.textContent = status;
+    };
+
     // 0. Listen for real-time window configuration events from Go backend
     Events.on('window-config', (cfg: any) => {
       this.applyWindowConfig(cfg);
     });
 
     // 0.1 Query window config from backend
+    setSplashStatus('Loading window configuration...');
     const winConfig = await AppAPI.getWindowConfig();
     this.applyWindowConfig(winConfig);
 
     // 1. Initialize Settings
-    const settingsUiContainer = document.getElementById('settings-ui-container')!;
-    this.settingsMgr = new SettingsManager(settingsUiContainer);
+    setSplashStatus('Loading user preferences...');
+    const settingsHost = document.getElementById('settings-editor-host')!;
+    this.settingsMgr = new SettingsManager(settingsHost);
     await this.settingsMgr.init();
     const settings = this.settingsMgr.getSettings();
     this.applyTheme(settings.theme);
@@ -55,14 +63,16 @@ class AstroCodeApp {
     }
 
     // 2. Initialize Monaco Editor
+    setSplashStatus('Mounting code editor...');
     const monacoHost = document.getElementById('monaco-host')!;
     const diffHost = document.getElementById('diff-editor-host')!;
     const tabsListEl = document.getElementById('tabs-list')!;
     const welcomeScreenEl = document.getElementById('welcome-screen')!;
-    this.monacoMgr = new MonacoManager(monacoHost, diffHost, tabsListEl, welcomeScreenEl);
+    this.monacoMgr = new MonacoManager(monacoHost, diffHost, tabsListEl, welcomeScreenEl, settingsHost);
     this.monacoMgr.init(settings);
 
     // 3. Initialize Terminal
+    setSplashStatus('Initializing terminal engine...');
     const terminalHost = document.getElementById('terminal-host')!;
     this.termMgr = new TerminalManager(terminalHost);
     this.termMgr.init(settings);
@@ -108,6 +118,7 @@ class AstroCodeApp {
     this.setupOutputPanel();
 
     // Default workspace check
+    setSplashStatus('Loading workspace...');
     const current = await EditorAPI.getCurrentWorkspace();
     if (current) {
       await this.openWorkspace(current);
@@ -115,6 +126,20 @@ class AstroCodeApp {
       // Start terminal with home or current directory
       await this.termMgr.startSession('');
     }
+
+    // Smooth opening animation: fade out splash screen when ready
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const splash = document.getElementById('startup-splash');
+        if (splash) {
+          setSplashStatus('Ready');
+          splash.classList.add('splash-hidden');
+          setTimeout(() => {
+            splash.remove();
+          }, 450);
+        }
+      }, 150);
+    });
   }
 
   private applyTheme(theme: string) {
@@ -212,6 +237,43 @@ class AstroCodeApp {
       this.hideAbout();
     });
 
+    const btnCopyAbout = document.getElementById('btn-copy-about');
+    const btnCopyText = document.getElementById('btn-copy-about-text');
+    if (btnCopyAbout) {
+      btnCopyAbout.onclick = async () => {
+        const info = [
+          'Koda',
+          'Version: 1.0.0',
+          'Commit: 7a942b0',
+          'Date: 2026-09-06',
+          'Runtime: Wails v2 • Go 1.24',
+          'Webview: WebKitGTK 4.1',
+          'Editor: Monaco Editor 0.52.2',
+          'Terminal: xterm.js 5.5.0 + PTY',
+          `OS: ${navigator.userAgent.includes('Linux') ? 'Linux x64' : navigator.platform}`
+        ].join('\n');
+
+        try {
+          await navigator.clipboard.writeText(info);
+          if (btnCopyText) btnCopyText.textContent = '✓ Copied';
+          setTimeout(() => {
+            if (btnCopyText) btnCopyText.textContent = 'Copy';
+          }, 1500);
+        } catch {
+          const ta = document.createElement('textarea');
+          ta.value = info;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          if (btnCopyText) btnCopyText.textContent = '✓ Copied';
+          setTimeout(() => {
+            if (btnCopyText) btnCopyText.textContent = 'Copy';
+          }, 1500);
+        }
+      };
+    }
+
     document.getElementById('about-modal')?.addEventListener('click', (e) => {
       if (e.target === document.getElementById('about-modal')) {
         this.hideAbout();
@@ -233,7 +295,7 @@ class AstroCodeApp {
 
   private async toggleFullscreen() {
     const isFull = await AppAPI.toggleFullscreen();
-    this.log('AstroCode', isFull ? 'Entered full screen' : 'Exited full screen');
+    this.log('Koda', isFull ? 'Entered full screen' : 'Exited full screen');
   }
 
   private showAbout() {
@@ -246,22 +308,41 @@ class AstroCodeApp {
     if (modal) modal.style.display = 'none';
   }
 
+  public openSettingsTab() {
+    this.monacoMgr.openSettingsTab();
+  }
+
   private setupComponentEvents() {
     // Monaco Events
     this.monacoMgr.onTabChange((tab) => {
       const langEl = document.getElementById('status-language');
       const indentEl = document.getElementById('status-indent');
       const breadcrumbFile = document.getElementById('breadcrumb-filename');
+      const breadcrumbIcon = document.querySelector('#editor-breadcrumbs .breadcrumb-item.active .codicon') as HTMLElement;
 
       if (tab) {
         this.explorerMgr.setActiveFile(tab.path);
-        if (langEl) langEl.textContent = tab.model.getLanguageId();
+        if (langEl) langEl.textContent = tab.path === 'koda://settings' ? 'Settings' : tab.model.getLanguageId();
         if (indentEl) indentEl.textContent = `Spaces: ${this.settingsMgr.getSettings().tabSize}`;
         if (breadcrumbFile) breadcrumbFile.textContent = tab.name;
+        if (breadcrumbIcon) {
+          if (tab.path === 'koda://settings') {
+            breadcrumbIcon.className = 'codicon codicon-settings-gear';
+            breadcrumbIcon.style.color = '';
+          } else {
+            const fi = getFileIconInfo(tab.name);
+            breadcrumbIcon.className = `codicon ${fi.glyphClass} ${fi.colorClass}`;
+            breadcrumbIcon.style.color = fi.color || '';
+          }
+        }
       } else {
         this.explorerMgr.setActiveFile(null);
         if (langEl) langEl.textContent = 'Plain Text';
         if (breadcrumbFile) breadcrumbFile.textContent = 'No file open';
+        if (breadcrumbIcon) {
+          breadcrumbIcon.className = 'codicon codicon-file';
+          breadcrumbIcon.style.color = '';
+        }
       }
     });
 
@@ -318,7 +399,7 @@ class AstroCodeApp {
     // Explorer Events
     this.explorerMgr.onOpenFile((path) => {
       this.monacoMgr.openFile(path);
-      this.log('AstroCode', `Opened file: ${path}`);
+      this.log('Koda', `Opened file: ${path}`);
     });
 
     this.explorerMgr.onOpenFolder(() => {
@@ -415,7 +496,7 @@ class AstroCodeApp {
 
     this.settingsMgr.onOpenSettingsJSON(async () => {
       const json = await SettingsAPI.getSettingsJSON();
-      this.monacoMgr.openFile('~/.astrocode/settings.json', json);
+      this.monacoMgr.openFile('~/.koda/settings.json', json);
     });
 
     // Quick Open file select & Go to Line
@@ -547,12 +628,38 @@ class AstroCodeApp {
   }
 
   private setupUIInteractions() {
-    // Activity Bar Switching
+    // Prevent default browser context menu globally outside editor & inputs
+    window.addEventListener('contextmenu', (e) => {
+      const target = e.target as HTMLElement;
+      const isCustomMenuAllowed = target.closest('.tree-node, .tab, .monaco-editor, .xterm, input, textarea');
+      if (!isCustomMenuAllowed) {
+        e.preventDefault();
+      }
+    });
+
+    // Native Drag-and-drop: prevent browser navigation and open dropped files
+    window.addEventListener('dragover', (e) => e.preventDefault(), false);
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          const file = e.dataTransfer.files[i];
+          if ((file as any).path) {
+            this.monacoMgr.openFile((file as any).path);
+          }
+        }
+      }
+    }, false);
+
     const activityButtons = document.querySelectorAll('.activity-btn[data-view]');
     activityButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
         const view = btn.getAttribute('data-view')!;
-        this.switchSidebarView(view);
+        if (view === 'settings') {
+          this.openSettingsTab();
+        } else {
+          this.switchSidebarView(view);
+        }
       });
     });
 
@@ -793,7 +900,25 @@ class AstroCodeApp {
     window.addEventListener('keydown', (e) => {
       const isCtrl = e.ctrlKey || e.metaKey;
 
-      if (isCtrl && e.key === 'p' && !e.shiftKey) {
+      // Prevent native browser page source / save / print overrides
+      if (isCtrl && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        return;
+      }
+
+      if (isCtrl && e.key === 'Tab') {
+        e.preventDefault();
+        this.monacoMgr.cycleTab(!e.shiftKey);
+      } else if (isCtrl && (e.key === 'n' || e.key === 'N') && !e.shiftKey) {
+        e.preventDefault();
+        this.monacoMgr.openFile(`Untitled-${Date.now() % 1000}.txt`, '');
+      } else if (e.key === 'F1') {
+        e.preventDefault();
+        this.quickOpenMgr.showCommandPalette();
+      } else if (e.key === 'F5' || (isCtrl && (e.key === 'r' || e.key === 'R'))) {
+        e.preventDefault();
+        this.explorerMgr.refresh();
+      } else if (isCtrl && e.key === 'p' && !e.shiftKey) {
         e.preventDefault();
         this.quickOpenMgr.showQuickOpen();
       } else if (isCtrl && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
@@ -833,7 +958,7 @@ class AstroCodeApp {
         this.switchSidebarView('explorer');
       } else if (isCtrl && e.key === ',') {
         e.preventDefault();
-        this.switchSidebarView('settings');
+        this.openSettingsTab();
       } else if (e.key === 'F11') {
         e.preventDefault();
         this.toggleFullscreen();
@@ -919,7 +1044,7 @@ class AstroCodeApp {
     await SettingsAPI.addRecentWorkspace(path);
 
     const folderName = path.split('/').pop() || path;
-    const title = `${folderName} — AstroCode`;
+    const title = `${folderName} — Koda`;
     const titleWorkspaceName = document.getElementById('titlebar-workspace-name')!;
     titleWorkspaceName.textContent = title;
     await AppAPI.setWindowTitle(title);
@@ -937,7 +1062,7 @@ class AstroCodeApp {
     // Fast index files for Quick Open
     this.indexWorkspaceFiles(path);
     this.loadRecentWorkspaces();
-    this.log('AstroCode', `Opened workspace: ${path}`);
+    this.log('Koda', `Opened workspace: ${path}`);
   }
 
   private async indexWorkspaceFiles(path: string) {
@@ -1289,19 +1414,19 @@ class AstroCodeApp {
       {
         id: 'workbench.action.openSettings',
         label: 'Preferences: Open Settings (UI)',
-        detail: 'Customize AstroCode editor & terminal options',
+        detail: 'Customize Koda editor & terminal options',
         icon: 'codicon-settings-gear',
         shortcut: 'Ctrl+,',
-        action: () => this.switchSidebarView('settings')
+        action: () => this.openSettingsTab()
       },
       {
         id: 'workbench.action.openSettingsJson',
         label: 'Preferences: Open User Settings (JSON)',
-        detail: 'Edit ~/.astrocode/settings.json directly',
+        detail: 'Edit ~/.koda/settings.json directly',
         icon: 'codicon-json',
         action: async () => {
           const json = await SettingsAPI.getSettingsJSON();
-          this.monacoMgr.openFile('~/.astrocode/settings.json', json);
+          this.monacoMgr.openFile('~/.koda/settings.json', json);
         }
       },
       {
@@ -1322,7 +1447,7 @@ class AstroCodeApp {
       },
       {
         id: 'workbench.action.showAbout',
-        label: 'Help: About AstroCode',
+        label: 'Help: About Koda',
         detail: 'Show version and environment details',
         icon: 'codicon-info',
         action: () => this.showAbout()
@@ -1378,8 +1503,8 @@ class AstroCodeApp {
   }
 }
 
-// Bootstrap AstroCode application
+// Bootstrap Koda application
 document.addEventListener('DOMContentLoaded', () => {
-  const app = new AstroCodeApp();
+  const app = new KodaApp();
   app.start();
 });

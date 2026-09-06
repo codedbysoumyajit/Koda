@@ -21,8 +21,21 @@ func NewSettingsService() *SettingsService {
 	if err != nil {
 		home = "."
 	}
-	configDir := filepath.Join(home, ".astrocode")
-	_ = os.MkdirAll(configDir, 0755)
+	configDir := filepath.Join(home, ".koda")
+	oldConfigDir := filepath.Join(home, ".astrocode")
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		_ = os.MkdirAll(configDir, 0755)
+		if _, err := os.Stat(oldConfigDir); err == nil {
+			// Migrate existing settings from ~/.astrocode
+			for _, file := range []string{"settings.json", "recent.json", "keybindings.json"} {
+				if data, err := os.ReadFile(filepath.Join(oldConfigDir, file)); err == nil {
+					_ = os.WriteFile(filepath.Join(configDir, file), data, 0644)
+				}
+			}
+		}
+	} else {
+		_ = os.MkdirAll(configDir, 0755)
+	}
 
 	svc := &SettingsService{
 		configDir: configDir,

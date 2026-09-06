@@ -12,10 +12,11 @@ test:
 
 build: build-frontend
 	mkdir -p build/bin
-	go build -tags "$(TAGS)" -o build/bin/astrocode .
+	go build -tags "$(TAGS)" -o build/bin/koda .
+	ln -sf koda build/bin/astrocode
 
 run: build
-	./build/bin/astrocode
+	./build/bin/koda
 
 clean:
 	rm -rf build/bin frontend/dist

@@ -22,15 +22,21 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+//go:embed build/appicon.png
+var appIcon []byte
+
 func detectBackend() (string, bool) {
 	// 1. If user explicitly set GDK_BACKEND in their shell environment, honor it
 	envBackend := os.Getenv("GDK_BACKEND")
 
-	// 2. Read user settings preference from ~/.astrocode/settings.json
+	// 2. Read user settings preference from ~/.koda/settings.json (or ~/.astrocode/settings.json)
 	prefBackend := ""
 	home, err := os.UserHomeDir()
 	if err == nil {
-		settingsFile := filepath.Join(home, ".astrocode", "settings.json")
+		settingsFile := filepath.Join(home, ".koda", "settings.json")
+		if _, err := os.Stat(settingsFile); os.IsNotExist(err) {
+			settingsFile = filepath.Join(home, ".astrocode", "settings.json")
+		}
 		if data, err := os.ReadFile(settingsFile); err == nil {
 			var cfg struct {
 				GdkBackend string `json:"gdkBackend"`
@@ -89,9 +95,9 @@ func main() {
 
 	// Create application with options
 	// When using Wayland, Frameless is false so the window relies on the Wayland compositor's native window bar
-	// When using X11/XWayland, Frameless is true so AstroCode uses its custom title bar
+	// When using X11/XWayland, Frameless is true so Koda uses its custom title bar
 	err := wails.Run(&options.App{
-		Title:             "AstroCode",
+		Title:             "Koda",
 		Width:             1280,
 		Height:            820,
 		MinWidth:          800,
@@ -118,7 +124,8 @@ func main() {
 			settingsSvc,
 		},
 		Linux: &linux.Options{
-			ProgramName: "astrocode",
+			Icon:        appIcon,
+			ProgramName: "koda",
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,

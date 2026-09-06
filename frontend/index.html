@@ -3,20 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AstroCode</title>
+  <title>Koda</title>
+  <style>
+    html, body {
+      background-color: #1e1e1e !important;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
   <link rel="stylesheet" href="./src/style.css" />
 </head>
-<body class="theme-vs-dark">
+<body class="theme-vs-dark" style="background-color: #1e1e1e; margin: 0; padding: 0; overflow: hidden;">
+  <!-- Native Startup Opening Animation & Splash Screen -->
+  <div id="startup-splash" class="startup-splash">
+    <div class="splash-center">
+      <div class="splash-logo-container">
+        <img src="./src/assets/logo.png" alt="Koda" class="splash-logo" />
+        <div class="splash-glow"></div>
+      </div>
+      <div class="splash-app-title">Koda</div>
+      <div class="splash-progress-track">
+        <div class="splash-progress-bar"></div>
+      </div>
+      <div class="splash-status-text" id="splash-status">Initializing workbench...</div>
+    </div>
+  </div>
+
   <div id="app" class="workbench">
     <!-- Titlebar -->
     <header id="titlebar" class="titlebar">
       <div class="titlebar-left">
         <div class="app-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#007acc"/>
-            <path d="M2 17L12 22L22 17" stroke="#388bfd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="#007acc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <img src="./src/assets/logo.png" alt="Koda" class="titlebar-logo-img" />
         </div>
         <nav class="menubar" id="menubar">
           <div class="menu-item" data-menu="file">File
@@ -70,7 +91,7 @@
           <div class="menu-item" data-menu="help">Help
             <div class="menu-dropdown" id="menu-help">
               <div class="menu-entry" data-cmd="workbench.action.openSettings"><span>Settings</span><span class="shortcut">Ctrl+,</span></div>
-              <div class="menu-entry" data-cmd="workbench.action.showAbout"><span>About AstroCode</span></div>
+              <div class="menu-entry" data-cmd="workbench.action.showAbout"><span>About Koda</span></div>
             </div>
           </div>
         </nav>
@@ -79,7 +100,7 @@
       <div class="titlebar-center" id="quickopen-trigger">
         <div class="quickopen-searchbox">
           <i class="codicon codicon-search"></i>
-          <span id="titlebar-workspace-name">AstroCode — Open Folder</span>
+          <span id="titlebar-workspace-name">Koda — Open Folder</span>
           <span class="quickopen-badge">Ctrl+P</span>
         </div>
       </div>
@@ -282,25 +303,23 @@
           </div>
 
           <div class="editor-breadcrumbs" id="editor-breadcrumbs">
-            <span class="breadcrumb-item"><i class="codicon codicon-folder"></i> <span id="breadcrumb-workspace">AstroCode</span></span>
+            <span class="breadcrumb-item"><i class="codicon codicon-folder"></i> <span id="breadcrumb-workspace">Koda</span></span>
             <span class="breadcrumb-separator"><i class="codicon codicon-chevron-right"></i></span>
             <span class="breadcrumb-item active"><i class="codicon codicon-file"></i> <span id="breadcrumb-filename">No file open</span></span>
           </div>
 
+          <!-- Main Workspace (Editor + Welcome) -->
           <div class="editor-main" id="editor-main">
             <div id="monaco-host"></div>
             <div id="diff-editor-host" style="display:none;"></div>
+            <div id="settings-editor-host" style="display:none;"></div>
             
             <div class="welcome-screen" id="welcome-screen">
               <div class="welcome-center">
                 <div class="welcome-hero">
-                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#007acc"/>
-                    <path d="M2 17L12 22L22 17" stroke="#388bfd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M2 12L12 17L22 12" stroke="#007acc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <h1>AstroCode</h1>
-                  <p class="subtitle">Lightweight VS Code Clone in Go + Wails</p>
+                  <img src="./src/assets/logo.png" alt="Koda" class="welcome-logo-img" />
+                  <h1>Koda</h1>
+                  <p class="subtitle">Lightweight Code Editor in Go + Wails</p>
                 </div>
                 <div class="welcome-sections">
                   <div class="welcome-col">
@@ -352,15 +371,15 @@
             </div>
             <div class="panel-view" id="view-output">
               <div class="output-toolbar">
-                <select id="output-channel-select" class="output-channel-select">
-                  <option value="AstroCode">AstroCode</option>
+                <select class="dropdown-select" id="output-channel-select">
+                  <option value="Koda">Koda</option>
                   <option value="Git">Git</option>
                   <option value="Terminal">Terminal</option>
                 </select>
                 <button class="icon-btn" id="btn-clear-output" title="Clear Output"><i class="codicon codicon-clear-all"></i></button>
               </div>
               <div class="output-console" id="output-host">
-                <div class="output-line">[AstroCode] Application core ready. Monaco Editor and Terminal initialized.</div>
+                <div class="output-line">[Koda] Application core ready. Monaco Editor and Terminal initialized.</div>
               </div>
             </div>
           </div>
@@ -410,24 +429,26 @@
     <div class="modal-backdrop" id="about-modal" style="display: none;">
       <div class="about-card">
         <div class="about-header">
-          <div class="app-icon large">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#007acc"/>
-              <path d="M2 17L12 22L22 17" stroke="#388bfd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="#007acc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+          <div class="about-logo-wrapper">
+            <img src="./src/assets/app-icon.png" alt="Koda" class="about-logo-img" />
           </div>
-          <h2>AstroCode</h2>
-          <span class="about-version">v1.0.0 (Go + Wails + Monaco)</span>
+          <h2 class="about-title">Koda</h2>
+          <span class="about-version">Version 1.0.0</span>
         </div>
-        <div class="about-details">
-          <div class="about-row"><span>Framework:</span><strong>Wails v2</strong></div>
-          <div class="about-row"><span>Core Editor:</span><strong>Monaco Editor</strong></div>
-          <div class="about-row"><span>Terminal Engine:</span><strong>xterm.js + PTY</strong></div>
-          <div class="about-row"><span>Platform:</span><strong>Cross-Platform (Linux, macOS, Windows)</strong></div>
-          <p class="about-desc">A lightweight, high-performance VS Code clone built with Go, TypeScript, and Monaco.</p>
+        <div class="about-details" id="about-details-content">
+          <div class="about-row"><span>Commit:</span><code id="about-commit">7a942b0</code></div>
+          <div class="about-row"><span>Date:</span><span id="about-date">2026-09-06</span></div>
+          <div class="about-row"><span>Runtime:</span><span>Wails v2 &bull; Go 1.24</span></div>
+          <div class="about-row"><span>Webview:</span><span>WebKitGTK 4.1</span></div>
+          <div class="about-row"><span>Editor:</span><span>Monaco Editor 0.52.2</span></div>
+          <div class="about-row"><span>Terminal:</span><span>xterm.js 5.5.0 + PTY</span></div>
+          <div class="about-row"><span>OS:</span><span id="about-os">Linux x64</span></div>
         </div>
+        <p class="about-desc">A lightweight, high-performance code editor built with Go, TypeScript, and Monaco.</p>
         <div class="about-footer">
+          <button class="action-btn secondary" id="btn-copy-about">
+            <i class="codicon codicon-copy"></i> <span id="btn-copy-about-text">Copy</span>
+          </button>
           <button class="action-btn primary" id="btn-close-about">OK</button>
         </div>
       </div>
