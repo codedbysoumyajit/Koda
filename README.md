@@ -104,7 +104,7 @@ Make sure you have the following installed on your system:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/codedbysoumyajit/astrocode.git
+   git clone https://github.com/codedbysoumyajit/Koda.git
    cd astrocode
    ```
 
