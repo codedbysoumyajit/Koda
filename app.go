@@ -12,9 +12,16 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// WindowConfig defines the window decoration and backend configuration
+type WindowConfig struct {
+	IsWayland        bool `json:"isWayland"`
+	IsNativeTitlebar bool `json:"isNativeTitlebar"`
+}
+
 // App struct
 type App struct {
 	ctx         context.Context
+	winConfig   WindowConfig
 	EditorSvc   *editorsvc.EditorService
 	TermSvc     *termsvc.TerminalService
 	GitSvc      *gitsvc.GitService
@@ -29,8 +36,10 @@ func NewApp(
 	gitSvc *gitsvc.GitService,
 	searchSvc *searchsvc.SearchService,
 	settingsSvc *settingssvc.SettingsService,
+	winConfig WindowConfig,
 ) *App {
 	return &App{
+		winConfig:   winConfig,
 		EditorSvc:   editorSvc,
 		TermSvc:     termSvc,
 		GitSvc:      gitSvc,
@@ -48,6 +57,7 @@ func (a *App) startup(ctx context.Context) {
 	a.GitSvc.Startup(ctx)
 	a.SearchSvc.Startup(ctx)
 	a.SettingsSvc.Startup(ctx)
+	wailsRuntime.EventsEmit(ctx, "window-config", a.winConfig)
 }
 
 // Greet returns a greeting for the given name
@@ -104,5 +114,17 @@ func (a *App) Minimize() {
 func (a *App) Close() {
 	if a.ctx != nil {
 		wailsRuntime.Quit(a.ctx)
+	}
+}
+
+// GetWindowConfig returns current window configuration (Wayland vs X11, native titlebar)
+func (a *App) GetWindowConfig() WindowConfig {
+	return a.winConfig
+}
+
+// SetWindowTitle updates the native window title
+func (a *App) SetWindowTitle(title string) {
+	if a.ctx != nil {
+		wailsRuntime.WindowSetTitle(a.ctx, title)
 	}
 }

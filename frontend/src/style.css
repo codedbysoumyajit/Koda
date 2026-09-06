@@ -363,6 +363,16 @@ html, body {
   color: #ffffff;
 }
 
+/* Native Titlebar Mode (Wayland) */
+body.native-titlebar .titlebar-window-controls {
+  display: none !important;
+}
+
+body.native-titlebar .titlebar {
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
 .window-control-btn i {
   font-size: 13px;
 }

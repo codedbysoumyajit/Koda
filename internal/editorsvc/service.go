@@ -24,11 +24,32 @@ type EditorService struct {
 	mu              sync.RWMutex
 	lastEmitTime    time.Time
 	isOpeningFolder bool
+	isWayland       bool
+}
+
+type WindowConfig struct {
+	IsWayland        bool `json:"isWayland"`
+	IsNativeTitlebar bool `json:"isNativeTitlebar"`
 }
 
 func NewEditorService() *EditorService {
 	return &EditorService{
 		watcherStop: make(chan struct{}),
+	}
+}
+
+func (s *EditorService) SetWayland(isWayland bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.isWayland = isWayland
+}
+
+func (s *EditorService) GetWindowConfig() WindowConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return WindowConfig{
+		IsWayland:        s.isWayland,
+		IsNativeTitlebar: s.isWayland,
 	}
 }
 

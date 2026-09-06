@@ -114,7 +114,34 @@ export interface EditorSettings {
   terminalCursorBlink: boolean;
   formatOnSave: boolean;
   autoSave: string;
-  gdkBackend?: 'x11' | 'wayland';
+  gdkBackend?: 'auto' | 'x11' | 'wayland';
+  isWayland?: boolean;
+  isNativeTitlebar?: boolean;
+}
+
+export interface WindowConfig {
+  isWayland: boolean;
+  isNativeTitlebar: boolean;
+}
+
+export async function waitForWails(): Promise<void> {
+  if (
+    (window as any).go?.main?.App ||
+    (window as any).go?.settingssvc?.SettingsService ||
+    (window as any).go?.editorsvc?.EditorService
+  ) {
+    return;
+  }
+  for (let i = 0; i < 60; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    if (
+      (window as any).go?.main?.App ||
+      (window as any).go?.settingssvc?.SettingsService ||
+      (window as any).go?.editorsvc?.EditorService
+    ) {
+      return;
+    }
+  }
 }
 
 // Service proxies
@@ -430,6 +457,40 @@ export const AppAPI = {
       return await window.runtime.WindowIsMaximised();
     }
     return false;
+  },
+  getWindowConfig: async (): Promise<WindowConfig> => {
+    await waitForWails();
+    if (window.go?.main?.App?.GetWindowConfig) {
+      try {
+        const cfg = await window.go.main.App.GetWindowConfig();
+        if (cfg && typeof cfg.isNativeTitlebar === 'boolean') return cfg;
+      } catch (e) {
+        console.warn('App.GetWindowConfig failed:', e);
+      }
+    }
+    if (window.go?.settingssvc?.SettingsService?.GetWindowConfig) {
+      try {
+        const cfg = await window.go.settingssvc.SettingsService.GetWindowConfig();
+        if (cfg && typeof cfg.isNativeTitlebar === 'boolean') return cfg;
+      } catch (e) {
+        console.warn('SettingsService.GetWindowConfig failed:', e);
+      }
+    }
+    if (window.go?.editorsvc?.EditorService?.GetWindowConfig) {
+      try {
+        const cfg = await window.go.editorsvc.EditorService.GetWindowConfig();
+        if (cfg && typeof cfg.isNativeTitlebar === 'boolean') return cfg;
+      } catch (e) {
+        console.warn('EditorService.GetWindowConfig failed:', e);
+      }
+    }
+    return { isWayland: false, isNativeTitlebar: false };
+  },
+  setWindowTitle: async (title: string): Promise<void> => {
+    if (window.go?.main?.App?.SetWindowTitle) {
+      await window.go.main.App.SetWindowTitle(title);
+    }
+    document.title = title;
   }
 };
 

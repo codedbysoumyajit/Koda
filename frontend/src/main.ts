@@ -1,5 +1,5 @@
 import './style.css';
-import { EditorAPI, SettingsAPI, GitAPI, AppAPI } from './services/api';
+import { EditorAPI, SettingsAPI, GitAPI, AppAPI, Events } from './services/api';
 import { MonacoManager, EditorTab } from './components/monaco';
 import { TerminalManager } from './components/terminal';
 import { ExplorerManager } from './components/explorer';
@@ -33,12 +33,26 @@ class AstroCodeApp {
   private isOpeningFolder: boolean = false;
 
   public async start() {
+    // 0. Listen for real-time window configuration events from Go backend
+    Events.on('window-config', (cfg: any) => {
+      this.applyWindowConfig(cfg);
+    });
+
+    // 0.1 Query window config from backend
+    const winConfig = await AppAPI.getWindowConfig();
+    this.applyWindowConfig(winConfig);
+
     // 1. Initialize Settings
     const settingsUiContainer = document.getElementById('settings-ui-container')!;
     this.settingsMgr = new SettingsManager(settingsUiContainer);
     await this.settingsMgr.init();
     const settings = this.settingsMgr.getSettings();
     this.applyTheme(settings.theme);
+
+    // If settings contained window config, apply it as well
+    if (typeof settings.isNativeTitlebar === 'boolean') {
+      this.applyWindowConfig({ isWayland: settings.isWayland, isNativeTitlebar: settings.isNativeTitlebar });
+    }
 
     // 2. Initialize Monaco Editor
     const monacoHost = document.getElementById('monaco-host')!;
@@ -147,7 +161,28 @@ class AstroCodeApp {
     this.renderOutputConsole();
   }
 
+  private applyWindowConfig(winConfig: any) {
+    const isNative = Boolean(winConfig?.isNativeTitlebar);
+    const windowControls = document.querySelector('.titlebar-window-controls') as HTMLElement;
+    if (isNative) {
+      document.body.classList.add('native-titlebar');
+      if (windowControls) {
+        windowControls.style.setProperty('display', 'none', 'important');
+      }
+    } else {
+      document.body.classList.remove('native-titlebar');
+      if (windowControls) {
+        windowControls.style.display = '';
+      }
+    }
+  }
+
   private setupWindowControls() {
+    // Re-verify window configuration to ensure duplicate controls stay hidden under native Wayland
+    AppAPI.getWindowConfig().then((cfg) => {
+      this.applyWindowConfig(cfg);
+    });
+
     const minBtn = document.getElementById('btn-window-minimize');
     const maxBtn = document.getElementById('btn-window-maximize');
     const closeBtn = document.getElementById('btn-window-close');
@@ -884,8 +919,10 @@ class AstroCodeApp {
     await SettingsAPI.addRecentWorkspace(path);
 
     const folderName = path.split('/').pop() || path;
+    const title = `${folderName} — AstroCode`;
     const titleWorkspaceName = document.getElementById('titlebar-workspace-name')!;
-    titleWorkspaceName.textContent = `${folderName} — AstroCode`;
+    titleWorkspaceName.textContent = title;
+    await AppAPI.setWindowTitle(title);
 
     const breadcrumbWorkspace = document.getElementById('breadcrumb-workspace');
     if (breadcrumbWorkspace) breadcrumbWorkspace.textContent = folderName;

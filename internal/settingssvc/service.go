@@ -12,6 +12,7 @@ type SettingsService struct {
 	ctx         context.Context
 	configDir   string
 	settings    EditorSettings
+	isWayland   bool
 	mu          sync.RWMutex
 }
 
@@ -45,7 +46,7 @@ func defaultSettings() EditorSettings {
 		TerminalCursorBlink: true,
 		FormatOnSave:        false,
 		AutoSave:            "off",
-		GdkBackend:          "x11",
+		GdkBackend:          "auto",
 	}
 }
 
@@ -105,7 +106,27 @@ func (s *SettingsService) saveCurrentSettings() {
 func (s *SettingsService) GetSettings() EditorSettings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.settings
+	settings := s.settings
+	settings.IsWayland = s.isWayland
+	settings.IsNativeTitlebar = s.isWayland
+	return settings
+}
+
+func (s *SettingsService) SetWayland(isWayland bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.isWayland = isWayland
+	s.settings.IsWayland = isWayland
+	s.settings.IsNativeTitlebar = isWayland
+}
+
+func (s *SettingsService) GetWindowConfig() WindowConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return WindowConfig{
+		IsWayland:        s.isWayland,
+		IsNativeTitlebar: s.isWayland,
+	}
 }
 
 func (s *SettingsService) SaveSettings(settings EditorSettings) error {

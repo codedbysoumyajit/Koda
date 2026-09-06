@@ -125,8 +125,9 @@ export class SettingsManager {
         <div class="setting-item">
           <label>Display Backend</label>
           <select id="setting-gdk-backend">
-            <option value="x11" ${s.gdkBackend !== 'wayland' ? 'selected' : ''}>X11 / XWayland (Frameless, Recommended)</option>
-            <option value="wayland" ${s.gdkBackend === 'wayland' ? 'selected' : ''}>Native Wayland (Requires KDE Window Rule)</option>
+            <option value="auto" ${s.gdkBackend === 'auto' || !s.gdkBackend ? 'selected' : ''}>Auto (Native bar on Wayland, AstroCode bar on X11)</option>
+            <option value="wayland" ${s.gdkBackend === 'wayland' ? 'selected' : ''}>Wayland (Native window bar)</option>
+            <option value="x11" ${s.gdkBackend === 'x11' ? 'selected' : ''}>X11 / XWayland (AstroCode custom title bar)</option>
           </select>
         </div>
         <div style="font-size: 11px; color: var(--fg-description); margin-top: 4px; line-height: 1.4;">
